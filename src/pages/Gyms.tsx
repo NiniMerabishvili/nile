@@ -165,34 +165,34 @@ export default function Gyms() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     City
                   </label>
-                  <select 
+              <select 
                     name="city" 
                     value={filters.city}
-                    onChange={handleFilterChange}
+                onChange={handleFilterChange}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-dark-400 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-dark-300"
-                  >
+              >
                     <option value="">All Cities</option>
                     {getUniqueValues('city').map(city => (
                       <option key={city} value={city}>{city}</option>
                     ))}
-                  </select>
+              </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Country
                   </label>
-                  <select 
+              <select 
                     name="country" 
                     value={filters.country}
-                    onChange={handleFilterChange}
+                onChange={handleFilterChange}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-dark-400 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-dark-300"
                   >
                     <option value="">All Countries</option>
                     {getUniqueValues('country').map(country => (
                       <option key={country} value={country}>{country}</option>
                     ))}
-                  </select>
+              </select>
                 </div>
               </div>
 
@@ -215,7 +215,7 @@ export default function Gyms() {
         {loading ? (
           <div className="flex items-center justify-center py-16">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          </div>
+        </div>
         ) : filteredGyms.length === 0 ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -235,23 +235,23 @@ export default function Gyms() {
           </motion.div>
         ) : (
           /* Gym Grid */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {filteredGyms.map((gym, index) => (
-              <motion.div
-                key={gym.id}
-                initial="initial"
-                whileInView="animate"
-                viewport={{ once: true }}
-                variants={staggerFadeIn(index * 0.1)}
-              >
-                <Link to={`/gyms/${gym.id}`} className="block">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {filteredGyms.map((gym, index) => (
+            <motion.div
+              key={gym.id}
+              initial="initial"
+              whileInView="animate"
+              viewport={{ once: true }}
+              variants={staggerFadeIn(index * 0.1)}
+            >
+              <Link to={`/gyms/${gym.id}`} className="block">
                   <div className="bg-white dark:bg-dark-200 rounded-xl shadow-sm border border-gray-100 dark:border-dark-300 overflow-hidden group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
                     {/* Image */}
                     <div className="relative h-48 overflow-hidden">
                       {gym.images && gym.images.length > 0 ? (
-                        <img
+                    <img
                           src={gym.images[0]}
-                          alt={gym.name}
+                      alt={gym.name}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                           onError={(e) => {
                             const target = e.target as HTMLImageElement
@@ -265,15 +265,15 @@ export default function Gyms() {
                           <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
                           <p className="text-gray-500 text-sm">No image available</p>
                         </div>
-                      </div>
+                  </div>
                       
                       {/* Image counter */}
                       {gym.images && gym.images.length > 1 && (
                         <div className="absolute top-3 right-3 bg-black/70 text-white px-2 py-1 rounded-full text-xs">
                           +{gym.images.length - 1} more
-                        </div>
+                  </div>
                       )}
-                    </div>
+                  </div>
 
                     {/* Content */}
                     <div className="p-6">
@@ -284,7 +284,7 @@ export default function Gyms() {
                       <div className="flex items-center text-gray-600 dark:text-gray-400 mb-3">
                         <MapPinIcon className="h-5 w-5 mr-2 flex-shrink-0" />
                         <span className="truncate">{getLocationString(gym)}</span>
-                      </div>
+                  </div>
 
                       {gym.description && (
                         <p className="text-gray-700 dark:text-gray-300 text-sm line-clamp-2 mb-4">
@@ -292,7 +292,7 @@ export default function Gyms() {
                         </p>
                       )}
 
-                      <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between">
                         <div className="text-sm text-gray-500 dark:text-gray-400">
                           View Details
                         </div>
@@ -302,12 +302,12 @@ export default function Gyms() {
                           </svg>
                         </div>
                       </div>
-                    </div>
                   </div>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
+                </div>
+              </Link>
+            </motion.div>
+          ))}
+        </div>
         )}
       </div>
     </div>

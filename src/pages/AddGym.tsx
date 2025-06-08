@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   BuildingOfficeIcon,
-  MapPinIcon,
   PhoneIcon,
   EnvelopeIcon,
   GlobeAltIcon,
@@ -12,10 +11,11 @@ import {
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/context/AuthContext'
 import { createGymByOwner } from '@/lib/supabase'
+import SimpleLocationSelector from '@/components/SimpleLocationSelector'
 import toast from 'react-hot-toast'
 
 export default function AddGym() {
-  const { user, isGymOwner } = useAuth()
+  const { isGymOwner } = useAuth()
   const navigate = useNavigate()
   
   const [formData, setFormData] = useState({
@@ -36,7 +36,6 @@ export default function AddGym() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  // Redirect if not gym owner
   if (!isGymOwner) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -47,7 +46,7 @@ export default function AddGym() {
               Access Denied
             </h1>
             <p className="text-red-700 dark:text-red-300">
-              You need to be a gym owner to access this page. Please sign up as a gym owner to list your gym.
+              You need to be a gym owner to access this page.
             </p>
           </div>
         </div>
@@ -57,9 +56,23 @@ export default function AddGym() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
+
+  const handleLocationChange = (location: {
+    address: string
+    city: string
+    country: string
+    latitude: number
+    longitude: number
+  }) => {
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      address: location.address,
+      city: location.city,
+      country: location.country,
+      latitude: location.latitude,
+      longitude: location.longitude
     }))
   }
 
@@ -86,20 +99,22 @@ export default function AddGym() {
     setLoading(true)
 
     try {
-      // Basic validation
-      if (!formData.name || !formData.description || !formData.address || !formData.city || !formData.country) {
-        throw new Error('Please fill in all required fields')
+      // Validation
+      if (!formData.name || !formData.description) {
+        throw new Error('Please fill in gym name and description')
+      }
+
+      if (!formData.address || !formData.city || !formData.country) {
+        throw new Error('Please select a location using the map or search')
       }
 
       if (!formData.phone_number || !formData.email) {
         throw new Error('Please provide contact information')
       }
 
-      // Create gym
       await createGymByOwner(formData)
-      
       toast.success('Gym submitted successfully! It will be reviewed by our admin team.')
-      navigate('/dashboard') // Redirect to dashboard or gym owner panel
+      navigate('/')
       
     } catch (err: any) {
       console.error('Error creating gym:', err)
@@ -120,7 +135,7 @@ export default function AddGym() {
         initial="initial"
         animate="animate"
         variants={fadeIn}
-        className="max-w-4xl mx-auto"
+        className="max-w-5xl mx-auto"
       >
         <div className="text-center mb-8">
           <BuildingOfficeIcon className="h-16 w-16 text-primary-600 mx-auto mb-4" />
@@ -139,7 +154,7 @@ export default function AddGym() {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-8">
             {/* Basic Information */}
             <div className="grid md:grid-cols-2 gap-6">
               <div>
@@ -198,58 +213,19 @@ export default function AddGym() {
               />
             </div>
 
-            {/* Location */}
-            <div className="grid md:grid-cols-3 gap-6">
-              <div>
-                <label htmlFor="address" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Street Address *
-                </label>
-                <div className="relative">
-                  <MapPinIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  <input
-                    type="text"
-                    id="address"
-                    name="address"
-                    required
-                    className="input-field pl-10"
-                    placeholder="123 Main Street"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="city" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  City *
-                </label>
-                <input
-                  type="text"
-                  id="city"
-                  name="city"
-                  required
-                  className="input-field"
-                  placeholder="New York"
-                  value={formData.city}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="country" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Country *
-                </label>
-                <input
-                  type="text"
-                  id="country"
-                  name="country"
-                  required
-                  className="input-field"
-                  placeholder="United States"
-                  value={formData.country}
-                  onChange={handleInputChange}
-                />
-              </div>
+            {/* Location Selector */}
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Location *</h3>
+              <SimpleLocationSelector
+                onLocationChange={handleLocationChange}
+                initialValues={{
+                  address: formData.address,
+                  city: formData.city,
+                  country: formData.country,
+                  latitude: formData.latitude,
+                  longitude: formData.longitude
+                }}
+              />
             </div>
 
             {/* Contact Information */}
@@ -295,7 +271,7 @@ export default function AddGym() {
             {/* Images */}
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Gym Photos
+                Gym Photos (Optional)
               </label>
               <div className="space-y-4">
                 <div className="flex gap-2">
@@ -339,41 +315,6 @@ export default function AddGym() {
                     ))}
                   </div>
                 )}
-              </div>
-            </div>
-
-            {/* Coordinates (Optional) */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="latitude" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Latitude (Optional)
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  id="latitude"
-                  name="latitude"
-                  className="input-field"
-                  placeholder="40.7128"
-                  value={formData.latitude || ''}
-                  onChange={handleInputChange}
-                />
-              </div>
-
-              <div>
-                <label htmlFor="longitude" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Longitude (Optional)
-                </label>
-                <input
-                  type="number"
-                  step="any"
-                  id="longitude"
-                  name="longitude"
-                  className="input-field"
-                  placeholder="-74.0060"
-                  value={formData.longitude || ''}
-                  onChange={handleInputChange}
-                />
               </div>
             </div>
 

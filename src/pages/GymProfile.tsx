@@ -13,6 +13,8 @@ import {
 import { supabase, type Gym } from '@/lib/supabase'
 import GymImageDisplay from '@/components/GymImageDisplay'
 import toast from 'react-hot-toast'
+import LocationDisplay from '@/components/LocationDisplay'
+import PhotoGallery from '@/components/PhotoGallery'
 
 export default function GymProfile() {
   const { id } = useParams()
@@ -175,76 +177,55 @@ export default function GymProfile() {
               </div>
             )}
 
-            {/* Location Details */}
+            {/* Location & Map - Now shows real map */}
             <div className="card">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Location & Contact</h2>
-              <div className="space-y-4">
-                {gym.address && (
-                  <div className="flex items-start">
-                    <MapPinIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400">{gym.address}</p>
-                      {(gym.city || gym.country) && (
-                        <p className="text-gray-500 dark:text-gray-500 text-sm">
-                          {[gym.city, gym.country].filter(Boolean).join(', ')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {gym.phone_number && (
-                  <div className="flex items-center">
-                    <PhoneIcon className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
-                    <a 
-                      href={`tel:${gym.phone_number}`}
-                      className="text-primary-600 dark:text-primary-400 hover:underline"
-                    >
-                      {gym.phone_number}
-                    </a>
-                  </div>
-                )}
-
-                {gym.email && (
-                  <div className="flex items-center">
-                    <EnvelopeIcon className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
-                    <a 
-                      href={`mailto:${gym.email}`}
-                      className="text-primary-600 dark:text-primary-400 hover:underline"
-                    >
-                      {gym.email}
-                    </a>
-                  </div>
-                )}
-
-                {gym.website && (
-                  <div className="flex items-center">
-                    <GlobeAltIcon className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
-                    <a 
-                      href={gym.website.startsWith('http') ? gym.website : `https://${gym.website}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary-600 dark:text-primary-400 hover:underline"
-                    >
-                      Visit Website
-                    </a>
-                  </div>
-                )}
-              </div>
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Location & Map</h2>
+              <LocationDisplay
+                latitude={gym.latitude}
+                longitude={gym.longitude}
+                address={gym.address}
+                city={gym.city}
+                country={gym.country}
+                gymName={gym.name}
+              />
             </div>
 
-            {/* Map Integration Placeholder */}
-            {(gym.latitude && gym.longitude) && (
+            {/* Contact Information */}
+            {(gym.phone_number || gym.email || gym.website) && (
               <div className="card">
-                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Location on Map</h2>
-                <div className="bg-gray-100 dark:bg-gray-800 rounded-lg h-64 flex items-center justify-center">
-                  <div className="text-center text-gray-500 dark:text-gray-400">
-                    <MapPinIcon className="h-12 w-12 mx-auto mb-2" />
-                    <p>Map integration coming soon</p>
-                    <p className="text-sm">
-                      Coordinates: {gym.latitude}, {gym.longitude}
-                    </p>
-                  </div>
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Contact Information</h2>
+                <div className="space-y-3">
+                  {gym.phone_number && (
+                    <div className="flex items-center">
+                      <PhoneIcon className="h-5 w-5 text-gray-400 mr-3" />
+                      <a href={`tel:${gym.phone_number}`} className="text-primary-600 hover:text-primary-700 transition-colors">
+                        {gym.phone_number}
+                      </a>
+                    </div>
+                  )}
+                  
+                  {gym.email && (
+                    <div className="flex items-center">
+                      <EnvelopeIcon className="h-5 w-5 text-gray-400 mr-3" />
+                      <a href={`mailto:${gym.email}`} className="text-primary-600 hover:text-primary-700 transition-colors">
+                        {gym.email}
+                      </a>
+                    </div>
+                  )}
+                  
+                  {gym.website && (
+                    <div className="flex items-center">
+                      <GlobeAltIcon className="h-5 w-5 text-gray-400 mr-3" />
+                      <a 
+                        href={gym.website.startsWith('http') ? gym.website : `https://${gym.website}`} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-primary-600 hover:text-primary-700 transition-colors"
+                      >
+                        Visit Website
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

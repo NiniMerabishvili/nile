@@ -37,7 +37,7 @@ export default function Home() {
           <div className="text-stroke text-stroke-2 text-gray-300/30 dark:text-dark-300/20 select-none pointer-events-none font-display font-bold"
               style={{ fontSize: 'clamp(10rem, 30vw, 25rem)', lineHeight: '0.8'}} // Responsive font size
           >
-            ALNI
+            NILE
           </div>
         </motion.div>
 
