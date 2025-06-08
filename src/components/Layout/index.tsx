@@ -1,12 +1,14 @@
 import { useState, type ReactNode } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useTheme } from '@/context/ThemeContext'
+import { useAuth } from '@/context/AuthContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   SunIcon,
   MoonIcon,
   Bars3Icon,
   XMarkIcon,
+  UserCircleIcon,
 } from '@heroicons/react/24/outline'
 
 interface LayoutProps {
@@ -15,6 +17,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { theme, toggleTheme } = useTheme()
+  const { user, profile, signOut, loading, isAdmin } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const location = useLocation()
 
@@ -25,6 +28,22 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/about', label: 'About' },
     { path: '/contact', label: 'Contact' }
   ]
+
+  // Add admin link if user is admin
+  const adminLinks = isAdmin ? [
+    { path: '/admin', label: 'Admin Dashboard' }
+  ] : []
+
+  const allNavLinks = [...navLinks, ...adminLinks]
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      setIsMobileMenuOpen(false)
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-dark-100">
@@ -40,13 +59,13 @@ export default function Layout({ children }: LayoutProps) {
           
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
-            {navLinks.map(link => (
+            {allNavLinks.map(link => (
               <Link
                 key={link.path}
                 to={link.path}
                 className={`nav-link ${
                   location.pathname === link.path ? 'nav-link-active' : ''
-                }`}
+                } ${link.path === '/admin' ? 'text-red-600 dark:text-red-400 font-semibold' : ''}`}
               >
                 {link.label}
               </Link>
@@ -66,21 +85,41 @@ export default function Layout({ children }: LayoutProps) {
                 <MoonIcon className="h-5 w-5" />
               )}
             </button>
+            
             {/* Desktop Auth Links */}
             <div className="hidden md:flex items-center space-x-2">
-              <Link 
-                to="/signin"
-                className="btn-secondary px-4 py-2 text-sm"
-              >
-                Sign In
-              </Link>
-              <Link 
-                to="/signup"
-                className="btn-primary px-4 py-2 text-sm"
-              >
-                Sign Up
-              </Link>
+              {user ? (
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
+                    <UserCircleIcon className="h-5 w-5" />
+                    <span>{profile?.full_name || profile?.username || user.email}</span>
+                  </div>
+                  <button 
+                    onClick={handleSignOut}
+                    className="btn-secondary px-4 py-2 text-sm"
+                    disabled={loading}
+                  >
+                    {loading ? 'Signing out...' : 'Sign Out'}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <Link 
+                    to="/signin"
+                    className="btn-secondary px-4 py-2 text-sm"
+                  >
+                    Sign In
+                  </Link>
+                  <Link 
+                    to="/signup"
+                    className="btn-primary px-4 py-2 text-sm"
+                  >
+                    Sign Up
+                  </Link>
+                </>
+              )}
             </div>
+            
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="p-2 rounded-md text-gray-600 dark:text-dark-300 hover:bg-gray-100 dark:hover:bg-dark-200 md:hidden"
@@ -106,33 +145,52 @@ export default function Layout({ children }: LayoutProps) {
                        bg-white dark:bg-dark-100"
             >
               <div className="container mx-auto px-4 py-4 space-y-4">
-                {navLinks.map(link => (
+                {allNavLinks.map(link => (
                   <Link
                     key={link.path}
                     to={link.path}
                     className={`block nav-link ${
                       location.pathname === link.path ? 'nav-link-active' : ''
-                    }`}
+                    } ${link.path === '/admin' ? 'text-red-600 dark:text-red-400 font-semibold' : ''}`}
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     {link.label}
                   </Link>
                 ))}
+                
                 {/* Mobile Auth Links */}
-                <Link 
-                  to="/signin"
-                  className="btn-secondary w-full text-center"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Sign In
-                </Link>
-                <Link 
-                  to="/signup"
-                  className="btn-primary w-full text-center"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  Sign Up
-                </Link>
+                {user ? (
+                  <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-dark-200">
+                    <div className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
+                      <UserCircleIcon className="h-5 w-5" />
+                      <span>{profile?.full_name || profile?.username || user.email}</span>
+                    </div>
+                    <button 
+                      onClick={handleSignOut}
+                      className="btn-secondary w-full text-center"
+                      disabled={loading}
+                    >
+                      {loading ? 'Signing out...' : 'Sign Out'}
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <Link 
+                      to="/signin"
+                      className="btn-secondary w-full text-center"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Sign In
+                    </Link>
+                    <Link 
+                      to="/signup"
+                      className="btn-primary w-full text-center"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Sign Up
+                    </Link>
+                  </>
+                )}
               </div>
             </motion.div>
           )}
@@ -166,7 +224,7 @@ export default function Layout({ children }: LayoutProps) {
             <div className="space-y-4">
               <h3 className="text-lg font-semibold">Quick Links</h3>
               <div className="space-y-2">
-                {navLinks.map(link => (
+                {allNavLinks.map(link => (
                   <Link
                     key={link.path}
                     to={link.path}

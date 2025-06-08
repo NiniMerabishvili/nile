@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../context/AuthContext';
 
 export default function SignIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { signIn, loading } = useAuth();
   const navigate = useNavigate();
 
   const fadeIn = {
@@ -18,27 +19,13 @@ export default function SignIn() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
-    // Placeholder for Supabase sign-in logic
-    console.log('Signing in with:', { email, password });
-    // try {
-    //   // const { error } = await supabase.auth.signInWithPassword({ email, password });
-    //   // if (error) throw error;
-    //   // navigate('/dashboard');
-    //   alert('Sign in successful! (Placeholder)'); // Placeholder
-    //   navigate('/'); // Navigate to home or dashboard
-    // } catch (error: any) {
-    //   setError(error.message || 'Failed to sign in.');
-    // } finally {
-    //   setLoading(false);
-    // }
-
-    // Simulating API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    alert('Sign in successful! (Placeholder) Check console for data.');
-    setLoading(false);
-    navigate('/'); // Navigate to home page after "successful" signin
+    try {
+      await signIn(email, password);
+      navigate('/'); // Navigate to home page after successful signin
+    } catch (error: any) {
+      setError(error.message || 'Failed to sign in');
+    }
   };
 
   return (
@@ -115,7 +102,7 @@ export default function SignIn() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center btn-primary"
+              className="group relative w-full flex justify-center btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Signing in...' : 'Sign In'}
             </button>

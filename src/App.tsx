@@ -10,27 +10,35 @@ import GymProfile from '@/pages/GymProfile'
 import TrainerProfile from '@/pages/TrainerProfile'
 import SignIn from '@/pages/SignIn'
 import SignUp from '@/pages/SignUp'
+import AdminDashboard from '@/pages/AdminDashboard'
 import { ThemeProvider } from '@/context/ThemeContext'
+import { AuthProvider } from '@/context/AuthContext'
+
+// Import test utility for debugging in development
+import '@/utils/test-supabase'
 
 function App() {
   return (
     <ThemeProvider>
-      <Router>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/gyms" element={<Gyms />} />
-            <Route path="/gyms/:id" element={<GymProfile />} />
-            <Route path="/trainers" element={<Trainers />} />
-            <Route path="/trainers/:id" element={<TrainerProfile />} />
-            <Route path="/about" element={<About />} />
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/signup" element={<SignUp />} />
-          </Routes>
-        </Layout>
-        <Toaster position="top-right" />
-      </Router>
+      <AuthProvider>
+        <Router>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/gyms" element={<Gyms />} />
+              <Route path="/gyms/:id" element={<GymProfile />} />
+              <Route path="/trainers" element={<Trainers />} />
+              <Route path="/trainers/:id" element={<TrainerProfile />} />
+              <Route path="/about" element={<About />} />
+              <Route path="/contact" element={<Contact />} />
+              <Route path="/signin" element={<SignIn />} />
+              <Route path="/signup" element={<SignUp />} />
+              <Route path="/admin" element={<AdminDashboard />} />
+            </Routes>
+          </Layout>
+          <Toaster position="top-right" />
+        </Router>
+      </AuthProvider>
     </ThemeProvider>
   )
 }

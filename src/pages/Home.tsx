@@ -9,7 +9,6 @@ import {
   CalendarIcon,
   ArrowRightIcon,
 } from '@heroicons/react/24/outline'
-import videoSrc from '../assets/ninimagaria.mp4'
 
 export default function Home() {
   const fadeIn: Variants = {
@@ -21,6 +20,9 @@ export default function Home() {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0, transition: { duration: 0.6, delay } }
   })
+
+  // Supabase video URL
+  const videoSrc = "https://kqwmclhqtjbpxfjswnoa.supabase.co/storage/v1/object/sign/videos/animagaria.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85ZWZkOTkxNS0xZjE0LTQ5M2EtYjhiYS02NmMwY2U2ZTcxNGUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlb3MvYW5pbWFnYXJpYS5tcDQiLCJpYXQiOjE3NDkzOTU1MzcsImV4cCI6MTc4MDkzMTUzN30.4OXCF2hpW65RN7loGrlj0xS0O4H_R9W3dseqkesLAx4"
 
   return (
     <div className="space-y-12 md:space-y-20">

@@ -1,101 +1,126 @@
-import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useParams, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import type { Variants } from 'framer-motion'
 import {
   MapPinIcon,
-  StarIcon,
-  CalendarIcon,
-  ClockIcon,
-  CurrencyDollarIcon,
-  CheckCircleIcon,
+  PhoneIcon,
+  EnvelopeIcon,
+  GlobeAltIcon,
+  ArrowLeftIcon,
+  BuildingOfficeIcon,
 } from '@heroicons/react/24/outline'
-import gymImage1 from '../assets/box.jpg';
-import gymImage2 from '../assets/karate.jpg';
-import trainerImage1 from '../assets/box-trainer.jpg';
-// Assuming a second trainer image, if available, or reuse
-// import trainerImage2 from '../assets/some-other-trainer.jpg'; 
-
-// Mock data - replace with actual API call
-const mockGym = {
-  id: 1,
-  name: 'Fitness First',
-  location: 'New York, USA',
-  rating: 4.8,
-  reviews: 156,
-  description: 'A state-of-the-art fitness facility offering a wide range of equipment and classes for all fitness levels. Our experienced trainers are here to help you achieve your fitness goals.',
-  images: [gymImage1, gymImage2, gymImage1, gymImage2], // Use imported images for gallery
-  amenities: [
-    'Pool',
-    '24/7 Access',
-    'Personal Training',
-    'Group Classes',
-    'Sauna',
-    'Parking',
-    'Lockers',
-    'Towel Service'
-  ],
-  schedule: {
-    'Monday - Friday': '5:00 AM - 11:00 PM',
-    'Saturday - Sunday': '7:00 AM - 9:00 PM'
-  },
-  pricing: {
-    monthly: '$50',
-    annual: '$500',
-    dayPass: '$15'
-  },
-  trainers: [
-    {
-      id: 1,
-      name: 'John Smith',
-      specialty: 'Strength Training',
-      image: trainerImage1 // Use imported image
-    },
-    {
-      id: 2,
-      name: 'Sarah Johnson',
-      specialty: 'Yoga',
-      image: trainerImage1 // Reuse trainerImage1, or use a different one if available (e.g., trainerImage2)
-    }
-  ]
-}
+import { supabase, type Gym } from '@/lib/supabase'
+import GymImageDisplay from '@/components/GymImageDisplay'
+import toast from 'react-hot-toast'
 
 export default function GymProfile() {
   const { id } = useParams()
-  const [selectedImage, setSelectedImage] = useState(0)
-  const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual' | 'dayPass'>('monthly')
+  const [gym, setGym] = useState<Gym | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (id) {
+      fetchGym(id)
+    }
+  }, [id])
+
+  const fetchGym = async (gymId: string) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const { data, error: fetchError } = await supabase
+        .from('gyms')
+        .select('*')
+        .eq('id', gymId)
+        .single()
+
+      if (fetchError) {
+        console.error('Error fetching gym:', fetchError)
+        setError('Failed to load gym details')
+        toast.error('Failed to load gym details')
+        return
+      }
+
+      if (!data) {
+        setError('Gym not found')
+        return
+      }
+
+      setGym(data)
+    } catch (error) {
+      console.error('Unexpected error:', error)
+      setError('An unexpected error occurred')
+      toast.error('An unexpected error occurred')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fadeIn: Variants = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0, transition: { duration: 0.6 } }
   }
 
+  const getLocationString = (gym: Gym) => {
+    const parts = [gym.address, gym.city, gym.country].filter(Boolean)
+    return parts.join(', ')
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      </div>
+    )
+  }
+
+  if (error || !gym) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <BuildingOfficeIcon className="mx-auto h-16 w-16 text-gray-400 mb-4" />
+          <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
+            {error || 'Gym not found'}
+          </h3>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            The gym you're looking for doesn't exist or has been removed.
+          </p>
+          <Link
+            to="/gyms"
+            className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            <ArrowLeftIcon className="h-5 w-5 mr-2" />
+            Back to Gyms
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8">
+      {/* Back Button */}
+      <div className="container mx-auto px-4 pt-4">
+        <Link
+          to="/gyms"
+          className="inline-flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
+        >
+          <ArrowLeftIcon className="h-5 w-5 mr-2" />
+          Back to Gyms
+        </Link>
+      </div>
+
       {/* Image Gallery */}
       <section className="relative h-[500px] -mt-8">
-        <motion.img
-          key={selectedImage}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.3 }}
-          src={mockGym.images[selectedImage]}
-          alt={mockGym.name}
-          className="w-full h-full object-cover"
+        <GymImageDisplay
+          images={gym.images || []}
+          gymName={gym.name}
+          className="h-full w-full"
+          showGallery={true}
         />
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-          {mockGym.images.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => setSelectedImage(index)}
-              className={`w-3 h-3 rounded-full ${
-                index === selectedImage
-                  ? 'bg-white'
-                  : 'bg-white/50 hover:bg-white/75'
-              }`}
-            />
-          ))}
-        </div>
       </section>
 
       <div className="container mx-auto px-4">
@@ -109,88 +134,120 @@ export default function GymProfile() {
           >
             {/* Header */}
             <div className="flex items-start justify-between">
-              <div>
-                <h1 className="text-3xl font-bold mb-2">{mockGym.name}</h1>
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold mb-2 text-gray-900 dark:text-white">
+                  {gym.name}
+                </h1>
                 <div className="flex items-center text-gray-600 dark:text-gray-400 mb-4">
-                  <MapPinIcon className="h-5 w-5 mr-1" />
-                  <span>{mockGym.location}</span>
+                  <MapPinIcon className="h-5 w-5 mr-1 flex-shrink-0" />
+                  <span>{getLocationString(gym)}</span>
                 </div>
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center">
-                    <StarIcon className="h-5 w-5 text-yellow-400 mr-1" />
-                    <span>{mockGym.rating}</span>
+                {gym.status && (
+                  <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium">
+                    <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                      gym.status === 'approved' 
+                        ? 'bg-green-400' 
+                        : gym.status === 'pending' 
+                        ? 'bg-yellow-400' 
+                        : 'bg-red-400'
+                    }`}></span>
+                    <span className={
+                      gym.status === 'approved' 
+                        ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/20' 
+                        : gym.status === 'pending' 
+                        ? 'text-yellow-700 bg-yellow-100 dark:text-yellow-300 dark:bg-yellow-900/20' 
+                        : 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/20'
+                    }>
+                      {gym.status.charAt(0).toUpperCase() + gym.status.slice(1)}
+                    </span>
                   </div>
-                  <span className="text-gray-600 dark:text-gray-400">
-                    ({mockGym.reviews} reviews)
-                  </span>
-                </div>
+                )}
               </div>
             </div>
 
             {/* Description */}
-            <div className="card">
-              <h2 className="text-xl font-semibold mb-4">About</h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                {mockGym.description}
-              </p>
-            </div>
-
-            {/* Amenities */}
-            <div className="card">
-              <h2 className="text-xl font-semibold mb-4">Amenities</h2>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {mockGym.amenities.map((amenity) => (
-                  <div
-                    key={amenity}
-                    className="flex items-center text-gray-600 dark:text-gray-400"
-                  >
-                    <CheckCircleIcon className="h-5 w-5 text-primary-600 mr-2" />
-                    <span>{amenity}</span>
-                  </div>
-                ))}
+            {gym.description && (
+              <div className="card">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">About</h2>
+                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
+                  {gym.description}
+                </p>
               </div>
-            </div>
+            )}
 
-            {/* Schedule */}
+            {/* Location Details */}
             <div className="card">
-              <h2 className="text-xl font-semibold mb-4">Schedule</h2>
+              <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Location & Contact</h2>
               <div className="space-y-4">
-                {Object.entries(mockGym.schedule).map(([days, hours]) => (
-                  <div
-                    key={days}
-                    className="flex items-start justify-between text-gray-600 dark:text-gray-400"
-                  >
-                    <div className="flex items-center">
-                      <ClockIcon className="h-5 w-5 mr-2" />
-                      <span>{days}</span>
+                {gym.address && (
+                  <div className="flex items-start">
+                    <MapPinIcon className="h-5 w-5 text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-gray-600 dark:text-gray-400">{gym.address}</p>
+                      {(gym.city || gym.country) && (
+                        <p className="text-gray-500 dark:text-gray-500 text-sm">
+                          {[gym.city, gym.country].filter(Boolean).join(', ')}
+                        </p>
+                      )}
                     </div>
-                    <span>{hours}</span>
                   </div>
-                ))}
+                )}
+
+                {gym.phone_number && (
+                  <div className="flex items-center">
+                    <PhoneIcon className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
+                    <a 
+                      href={`tel:${gym.phone_number}`}
+                      className="text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                      {gym.phone_number}
+                    </a>
+                  </div>
+                )}
+
+                {gym.email && (
+                  <div className="flex items-center">
+                    <EnvelopeIcon className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
+                    <a 
+                      href={`mailto:${gym.email}`}
+                      className="text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                      {gym.email}
+                    </a>
+                  </div>
+                )}
+
+                {gym.website && (
+                  <div className="flex items-center">
+                    <GlobeAltIcon className="h-5 w-5 text-gray-400 mr-3 flex-shrink-0" />
+                    <a 
+                      href={gym.website.startsWith('http') ? gym.website : `https://${gym.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary-600 dark:text-primary-400 hover:underline"
+                    >
+                      Visit Website
+                    </a>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Trainers */}
-            <div className="card">
-              <h2 className="text-xl font-semibold mb-4">Our Trainers</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {mockGym.trainers.map((trainer) => (
-                  <div key={trainer.id} className="flex items-center space-x-4">
-                    <img
-                      src={trainer.image}
-                      alt={trainer.name}
-                      className="w-16 h-16 rounded-full object-cover"
-                    />
-                    <div>
-                      <h3 className="font-semibold">{trainer.name}</h3>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        {trainer.specialty}
-                      </p>
-                    </div>
+            {/* Map Integration Placeholder */}
+            {(gym.latitude && gym.longitude) && (
+              <div className="card">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Location on Map</h2>
+                <div className="bg-gray-100 dark:bg-gray-800 rounded-lg h-64 flex items-center justify-center">
+                  <div className="text-center text-gray-500 dark:text-gray-400">
+                    <MapPinIcon className="h-12 w-12 mx-auto mb-2" />
+                    <p>Map integration coming soon</p>
+                    <p className="text-sm">
+                      Coordinates: {gym.latitude}, {gym.longitude}
+                    </p>
                   </div>
-                ))}
+                </div>
               </div>
-            </div>
+            )}
           </motion.div>
 
           {/* Sidebar */}
@@ -200,37 +257,70 @@ export default function GymProfile() {
             variants={fadeIn}
             className="lg:col-span-1"
           >
-            <div className="sticky top-24">
+            <div className="sticky top-24 space-y-6">
+              {/* Quick Info Card */}
               <div className="card">
-                <h2 className="text-xl font-semibold mb-6">Membership Plans</h2>
-                <div className="space-y-4">
-                  {[
-                    { id: 'monthly', label: 'Monthly', price: mockGym.pricing.monthly },
-                    { id: 'annual', label: 'Annual', price: mockGym.pricing.annual },
-                    { id: 'dayPass', label: 'Day Pass', price: mockGym.pricing.dayPass }
-                  ].map((plan) => (
-                    <button
-                      key={plan.id}
-                      onClick={() => setSelectedPlan(plan.id as typeof selectedPlan)}
-                      className={`w-full p-4 rounded-lg border-2 transition-colors ${
-                        selectedPlan === plan.id
-                          ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20'
-                          : 'border-gray-200 dark:border-dark-300 hover:border-primary-600'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">{plan.label}</span>
-                        <span className="text-primary-600 font-semibold">
-                          {plan.price}
-                        </span>
-                      </div>
-                    </button>
-                  ))}
+                <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Quick Info</h3>
+                <div className="space-y-3">
+                  {gym.created_at && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Added:</span>
+                      <span className="text-gray-900 dark:text-white">
+                        {new Date(gym.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+
+                  {gym.images && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-600 dark:text-gray-400">Photos:</span>
+                      <span className="text-gray-900 dark:text-white">
+                        {gym.images.length} image{gym.images.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <button className="btn-primary w-full mt-6">
-                  Book Now
-                </button>
               </div>
+
+              {/* Contact Actions */}
+              {(gym.phone_number || gym.email || gym.website) && (
+                <div className="card">
+                  <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Get in Touch</h3>
+                  <div className="space-y-3">
+                    {gym.phone_number && (
+                      <a
+                        href={`tel:${gym.phone_number}`}
+                        className="btn-secondary w-full flex items-center justify-center"
+                      >
+                        <PhoneIcon className="h-5 w-5 mr-2" />
+                        Call Now
+                      </a>
+                    )}
+                    
+                    {gym.email && (
+                      <a
+                        href={`mailto:${gym.email}`}
+                        className="btn-secondary w-full flex items-center justify-center"
+                      >
+                        <EnvelopeIcon className="h-5 w-5 mr-2" />
+                        Send Email
+                      </a>
+                    )}
+                    
+                    {gym.website && (
+                      <a
+                        href={gym.website.startsWith('http') ? gym.website : `https://${gym.website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-primary w-full flex items-center justify-center"
+                      >
+                        <GlobeAltIcon className="h-5 w-5 mr-2" />
+                        Visit Website
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </motion.div>
         </div>

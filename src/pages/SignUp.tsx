@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { UserIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { useAuth } from '../context/AuthContext';
 
 export default function SignUp() {
   const [fullName, setFullName] = useState('');
@@ -9,7 +10,7 @@ export default function SignUp() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const { signUp, loading } = useAuth();
   const navigate = useNavigate();
 
   const fadeIn = {
@@ -20,33 +21,23 @@ export default function SignUp() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError('');
-    setLoading(true);
 
     if (password !== confirmPassword) {
       setError('Passwords do not match.');
-      setLoading(false);
       return;
     }
 
-    // Placeholder for Supabase sign-up logic
-    console.log('Signing up with:', { fullName, email, password });
-    // try {
-    //   // const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
-    //   // if (error) throw error;
-    //   // navigate('/dashboard'); // or a verification page
-    //   alert('Sign up successful! (Placeholder)'); // Placeholder
-    //   navigate('/signin');
-    // } catch (error: any) {
-    //   setError(error.message || 'Failed to sign up.');
-    // } finally {
-    //   setLoading(false);
-    // }
-    
-    // Simulating API call
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    alert('Sign up successful! (Placeholder) Check console for data.');
-    setLoading(false);
-    navigate('/signin'); // Navigate to signin after "successful" signup
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    try {
+      await signUp(email, password, fullName);
+      navigate('/signin'); // Navigate to signin after successful signup
+    } catch (error: any) {
+      setError(error.message || 'Failed to sign up.');
+    }
   };
 
   return (
