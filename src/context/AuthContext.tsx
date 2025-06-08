@@ -8,7 +8,8 @@ interface AuthContextType {
   profile: Profile | null
   loading: boolean
   isAdmin: boolean
-  signUp: (email: string, password: string, fullName: string) => Promise<void>
+  isGymOwner: boolean
+  signUp: (email: string, password: string, fullName: string, isGymOwner?: boolean) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
 }
@@ -20,6 +21,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [initialized, setInitialized] = useState(false)
+
+  // Computed properties
+  const isAdmin = profile?.role === 'admin'
+  const isGymOwner = profile?.role === 'gym_owner'
 
   useEffect(() => {
     // Prevent double initialization in React StrictMode
@@ -85,7 +90,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // If profile doesn't exist (PGRST116 = no rows), create it
         if (error.code === 'PGRST116') {
           console.log('Creating new profile...')
-          await createProfile(user)
+          // Check if user has gym owner flag in metadata
+          const isGymOwnerFromMetadata = user.user_metadata?.is_gym_owner || false
+          await createProfile(user, isGymOwnerFromMetadata)
         } else {
           console.error('Error fetching profile:', error)
           setLoading(false)
@@ -101,14 +108,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const createProfile = async (user: User) => {
+  const createProfile = async (user: User, isGymOwner: boolean = false) => {
     try {
+      // Check user metadata for gym owner status
+      const isGymOwnerFromMetadata = user.user_metadata?.is_gym_owner || isGymOwner
+      
       const profileData = {
         id: user.id,
         username: user.email?.split('@')[0] || 'user',
         full_name: user.user_metadata?.full_name || '',
         email: user.email || '',
-        role: 'user' as const
+        role: isGymOwnerFromMetadata ? 'gym_owner' as const : 'user' as const
       }
 
       console.log('Creating profile with data:', profileData)
@@ -129,16 +139,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
     } catch (error) {
       console.error('Failed to create profile:', error)
-      // Still set loading to false even if profile creation fails
     } finally {
       setLoading(false)
     }
   }
 
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, isGymOwner: boolean = false) => {
     setLoading(true)
     try {
-      console.log('Starting signup...')
+      console.log('Starting signup with gym owner:', isGymOwner)
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -146,6 +155,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         options: {
           data: {
             full_name: fullName,
+            is_gym_owner: isGymOwner  // Store in user metadata
           }
         }
       })
@@ -157,7 +167,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         // If user is immediately confirmed, create profile
         if (data.user.email_confirmed_at) {
-          await createProfile(data.user)
+          await createProfile(data.user, isGymOwner)
         }
         
         toast.success('Account created successfully! Please check your email to verify your account.')
@@ -198,14 +208,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
+    setLoading(true)
     try {
       const { error } = await supabase.auth.signOut()
       if (error) throw error
-      
+
+      setUser(null)
+      setProfile(null)
       toast.success('Signed out successfully!')
     } catch (error: any) {
+      console.error('Signout error:', error)
       toast.error(error.message || 'Failed to sign out')
-      throw error
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -213,13 +228,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user,
     profile,
     loading,
-    isAdmin: profile?.role === 'admin',
+    isAdmin,
+    isGymOwner,
     signUp,
     signIn,
-    signOut,
+    signOut
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export const useAuth = () => {

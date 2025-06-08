@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { UserIcon, EnvelopeIcon, LockClosedIcon } from '@heroicons/react/24/outline';
+import { UserIcon, EnvelopeIcon, LockClosedIcon, BuildingOfficeIcon } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 
 export default function SignUp() {
@@ -9,6 +9,7 @@ export default function SignUp() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isGymOwner, setIsGymOwner] = useState(false);
   const [error, setError] = useState('');
   const { signUp, loading } = useAuth();
   const navigate = useNavigate();
@@ -33,8 +34,8 @@ export default function SignUp() {
     }
 
     try {
-      await signUp(email, password, fullName);
-      navigate('/signin'); // Navigate to signin after successful signup
+      await signUp(email, password, fullName, isGymOwner);
+      navigate('/signin');
     } catch (error: any) {
       setError(error.message || 'Failed to sign up.');
     }
@@ -136,13 +137,96 @@ export default function SignUp() {
             </div>
           </div>
 
+          {/* Beautiful Gym Owner Selection */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Account Type
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Regular User Option */}
+              <motion.button
+                type="button"
+                onClick={() => setIsGymOwner(false)}
+                className={`
+                  relative px-4 py-3 rounded-xl border-2 transition-all duration-300 ease-out
+                  ${!isGymOwner 
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300' 
+                    : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-200 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500'
+                  }
+                `}
+                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: !isGymOwner ? 1 : 1.02 }}
+              >
+                <div className="flex flex-col items-center space-y-2">
+                  <UserIcon className={`h-6 w-6 ${!isGymOwner ? 'text-primary-500' : 'text-gray-400'}`} />
+                  <span className="text-sm font-medium">Regular User</span>
+                </div>
+                {!isGymOwner && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute top-1 right-1 h-5 w-5 bg-primary-500 rounded-full flex items-center justify-center"
+                  >
+                    <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </motion.div>
+                )}
+              </motion.button>
+
+              {/* Gym Owner Option */}
+              <motion.button
+                type="button"
+                onClick={() => setIsGymOwner(true)}
+                className={`
+                  relative px-4 py-3 rounded-xl border-2 transition-all duration-300 ease-out
+                  ${isGymOwner 
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 text-primary-700 dark:text-primary-300' 
+                    : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-dark-200 text-gray-600 dark:text-gray-400 hover:border-gray-300 dark:hover:border-gray-500'
+                  }
+                `}
+                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: isGymOwner ? 1 : 1.02 }}
+              >
+                <div className="flex flex-col items-center space-y-2">
+                  <BuildingOfficeIcon className={`h-6 w-6 ${isGymOwner ? 'text-primary-500' : 'text-gray-400'}`} />
+                  <span className="text-sm font-medium">I am Gym Owner</span>
+                </div>
+                {isGymOwner && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute top-1 right-1 h-5 w-5 bg-primary-500 rounded-full flex items-center justify-center"
+                  >
+                    <svg className="h-3 w-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </motion.div>
+                )}
+              </motion.button>
+            </div>
+            
+            {/* Helper Text */}
+            <div className="text-xs text-gray-500 dark:text-gray-400 text-center">
+              {isGymOwner ? (
+                <span className="text-primary-600 dark:text-primary-400">
+                  You'll be able to list and manage your gym after account creation
+                </span>
+              ) : (
+                <span>
+                  You can explore and book gyms and trainers
+                </span>
+              )}
+            </div>
+          </div>
+
           <div>
             <button
               type="submit"
               disabled={loading}
               className="group relative w-full flex justify-center btn-primary"
             >
-              {loading ? 'Creating account...' : 'Sign Up'}
+              {loading ? 'Creating account...' : (isGymOwner ? 'Create Gym Owner Account' : 'Create Account')}
             </button>
           </div>
         </form>

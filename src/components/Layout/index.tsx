@@ -9,6 +9,7 @@ import {
   Bars3Icon,
   XMarkIcon,
   UserCircleIcon,
+  BuildingOfficeIcon,
 } from '@heroicons/react/24/outline'
 
 interface LayoutProps {
@@ -17,7 +18,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { theme, toggleTheme } = useTheme()
-  const { user, profile, signOut, loading, isAdmin } = useAuth()
+  const { user, profile, signOut, loading, isAdmin, isGymOwner } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const location = useLocation()
 
@@ -70,6 +71,17 @@ export default function Layout({ children }: LayoutProps) {
                 {link.label}
               </Link>
             ))}
+            
+            {/* Add Gym - Only for gym owners */}
+            {isGymOwner && (
+              <Link
+                to="/add-gym"
+                className="text-primary-600 dark:text-primary-400 hover:text-primary-500 dark:hover:text-primary-300"
+              >
+                <BuildingOfficeIcon className="h-5 w-5 inline mr-1" />
+                Add Gym
+              </Link>
+            )}
           </div>
 
           <div className="flex items-center space-x-2">

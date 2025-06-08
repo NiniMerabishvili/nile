@@ -11,6 +11,7 @@ import TrainerProfile from '@/pages/TrainerProfile'
 import SignIn from '@/pages/SignIn'
 import SignUp from '@/pages/SignUp'
 import AdminDashboard from '@/pages/AdminDashboard'
+import AddGym from '@/pages/AddGym'
 import { ThemeProvider } from '@/context/ThemeContext'
 import { AuthProvider } from '@/context/AuthContext'
 
@@ -34,6 +35,7 @@ function App() {
               <Route path="/signin" element={<SignIn />} />
               <Route path="/signup" element={<SignUp />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/add-gym" element={<AddGym />} />
             </Routes>
           </Layout>
           <Toaster position="top-right" />

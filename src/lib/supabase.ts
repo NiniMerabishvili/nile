@@ -62,7 +62,7 @@ export interface Profile {
   full_name?: string
   email?: string
   avatar_url?: string
-  role: 'user' | 'admin'
+  role: 'user' | 'admin' | 'gym_owner'
   created_at?: string
   updated_at?: string
 }
@@ -304,4 +304,60 @@ export function getImageUrl(path: string): string {
     .getPublicUrl(path)
   
   return data.publicUrl
+}
+
+// New function to create a gym (for gym owners)
+export async function createGymByOwner(gymData: {
+  name: string
+  description: string
+  address: string
+  city: string
+  country: string
+  phone_number: string
+  email: string
+  website: string
+  images: string[]
+  latitude: number
+  longitude: number
+}) {
+  const { data: { user } } = await supabase.auth.getUser()
+  
+  if (!user) {
+    throw new Error('User must be authenticated')
+  }
+
+  const gymWithOwner = {
+    ...gymData,
+    owner_id: user.id,
+    status: 'pending' as const
+  }
+
+  const { data, error } = await supabase
+    .from('gyms')
+    .insert([gymWithOwner])
+    .select()
+    .single()
+
+  if (error) {
+    console.error('Error creating gym:', error)
+    throw error
+  }
+
+  return data as Gym
+}
+
+// Function to get gyms by owner
+export async function getGymsByOwner(ownerId: string) {
+  const { data, error } = await supabase
+    .from('gyms')
+    .select('*')
+    .eq('owner_id', ownerId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('Error fetching owner gyms:', error)
+    return []
+  }
+
+  return data as Gym[]
 } 
