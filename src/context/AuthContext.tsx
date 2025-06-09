@@ -168,13 +168,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       console.log('Starting signup with gym owner:', isGymOwner)
       
+      // Sign up without email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: undefined, // Disable email confirmation
           data: {
             full_name: fullName,
-            is_gym_owner: isGymOwner  // Store in user metadata
+            is_gym_owner: isGymOwner
           }
         }
       })
@@ -184,12 +186,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.user) {
         console.log('User created:', data.user)
         
-        // If user is immediately confirmed, create profile
-        if (data.user.email_confirmed_at) {
-          await createProfile(data.user, isGymOwner)
-        }
+        // Create profile immediately since no email confirmation is needed
+        await createProfile(data.user, isGymOwner)
         
-        toast.success('Account created successfully! Please check your email to verify your account.')
+        // Set user state immediately
+        setUser(data.user)
+        
+        toast.success('Account created and signed in successfully!')
       }
     } catch (error: any) {
       console.error('Signup error:', error)

@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   full_name TEXT,
   email TEXT,
   avatar_url TEXT,
-  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin')),
+  role TEXT DEFAULT 'user' CHECK (role IN ('user', 'admin', 'gym_owner')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   PRIMARY KEY (id)
@@ -41,22 +41,26 @@ CREATE TRIGGER handle_profiles_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION handle_updated_at();
 
--- Function to handle new user signup
+-- Enhanced function to handle new user signup - works with or without email confirmation
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO public.profiles (id, full_name, email, username)
+  INSERT INTO public.profiles (id, full_name, email, username, role)
   VALUES (
     NEW.id,
-    NEW.raw_user_meta_data->>'full_name',
+    COALESCE(NEW.raw_user_meta_data->>'full_name', ''),
     NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1))
+    COALESCE(NEW.raw_user_meta_data->>'username', split_part(NEW.email, '@', 1)),
+    CASE 
+      WHEN (NEW.raw_user_meta_data->>'is_gym_owner')::boolean = true THEN 'gym_owner'
+      ELSE 'user'
+    END
   );
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger to automatically create profile when user signs up
+-- Trigger to automatically create profile when user signs up (works immediately without email confirmation)
 CREATE OR REPLACE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
@@ -74,6 +78,17 @@ CREATE TABLE IF NOT EXISTS gyms (
   schedule JSONB DEFAULT '{}',
   price TEXT,
   status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  owner_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  owner_name TEXT,
+  address TEXT,
+  city TEXT,
+  country TEXT,
+  phone_number TEXT,
+  email TEXT,
+  website TEXT,
+  images TEXT[] DEFAULT '{}',
+  latitude FLOAT8,
+  longitude FLOAT8,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

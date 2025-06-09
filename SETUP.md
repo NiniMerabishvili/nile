@@ -55,20 +55,22 @@ CREATE POLICY "Users can update own profile." ON profiles
   FOR UPDATE USING (auth.uid() = id);
 ```
 
-### 4. Enable Email Authentication
+### 4. Disable Email Authentication Confirmation
 
-In your Supabase dashboard:
+**Important:** In your Supabase dashboard:
 1. Go to Authentication → Settings
-2. Make sure "Enable email confirmations" is enabled
-3. Configure your email templates if needed
+2. Under the "Email" section, **DISABLE** "Enable email confirmations"
+3. This allows users to sign up and immediately sign in without email verification
+4. Save the settings
 
 ### 5. Test the Setup
 
 After setting up the environment variables:
 1. Restart your development server: `npm run dev`
 2. Try to sign up with a new account
-3. Check if the user appears in your Supabase Auth users table
-4. Check if a profile is created in the profiles table
+3. You should be immediately signed in without needing to verify your email
+4. Check if the user appears in your Supabase Auth users table
+5. Check if a profile is created in the profiles table
 
 ## Troubleshooting
 
@@ -79,8 +81,9 @@ This error usually occurs due to React StrictMode double-mounting components. Th
 1. Check that your environment variables are correctly set
 2. Check the browser console for any errors
 3. Verify that your profiles table has the correct structure and RLS policies
+4. Make sure email confirmation is disabled in Supabase settings
 
 ### Authentication not working
 1. Ensure your Supabase project URL and anon key are correct
-2. Check that email authentication is enabled in Supabase
+2. Check that email confirmation is **disabled** in Supabase
 3. Look for any error messages in the browser console 
