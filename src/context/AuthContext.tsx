@@ -12,6 +12,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, isGymOwner?: boolean) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -58,12 +59,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('Auth event:', event, session?.user)
-        setUser(session?.user ?? null)
         
-        if (session?.user) {
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user)
           setLoading(true)
           await fetchOrCreateProfile(session.user)
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null)
+          setProfile(null)
+          setLoading(false)
+        } else if (session?.user) {
+          setUser(session.user)
+          if (!profile) {
+            setLoading(true)
+            await fetchOrCreateProfile(session.user)
+          }
         } else {
+          setUser(null)
           setProfile(null)
           setLoading(false)
         }
@@ -71,7 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     )
 
     return () => subscription.unsubscribe()
-  }, [initialized])
+  }, [initialized, profile])
 
   const fetchOrCreateProfile = async (user: User) => {
     try {
@@ -144,6 +156,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const refreshProfile = async () => {
+    if (user) {
+      setLoading(true)
+      await fetchOrCreateProfile(user)
+    }
+  }
+
   const signUp = async (email: string, password: string, fullName: string, isGymOwner: boolean = false) => {
     setLoading(true)
     try {
@@ -195,48 +214,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       console.log('Signin successful:', data.user)
       
-      // Profile creation will be handled by the onAuthStateChange listener
+      // Force immediate state update
+      setUser(data.user)
+      
+      // Fetch profile immediately
+      if (data.user) {
+        await fetchOrCreateProfile(data.user)
+      }
+      
       toast.success('Signed in successfully!')
       
     } catch (error: any) {
       console.error('Signin error:', error)
       toast.error(error.message || 'Failed to sign in')
       throw error
-    } finally {
-      setLoading(false)
     }
   }
 
   const signOut = async () => {
     setLoading(true)
     try {
+      console.log('Signing out...')
+      
       const { error } = await supabase.auth.signOut()
       if (error) throw error
-
+      
+      // Force immediate state reset
       setUser(null)
       setProfile(null)
+      
+      console.log('Signout successful')
       toast.success('Signed out successfully!')
+      
     } catch (error: any) {
       console.error('Signout error:', error)
       toast.error(error.message || 'Failed to sign out')
+      throw error
     } finally {
       setLoading(false)
     }
   }
 
-  const value = {
-    user,
-    profile,
-    loading,
-    isAdmin,
-    isGymOwner,
-    signUp,
-    signIn,
-    signOut
-  }
-
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      user,
+      profile,
+      loading,
+      isAdmin,
+      isGymOwner,
+      signUp,
+      signIn,
+      signOut,
+      refreshProfile
+    }}>
       {children}
     </AuthContext.Provider>
   )

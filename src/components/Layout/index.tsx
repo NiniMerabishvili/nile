@@ -30,7 +30,7 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/contact', label: 'Contact' }
   ]
 
-  // Add admin link if user is admin
+  // Add admin link if user is admin - changed to purple
   const adminLinks = isAdmin ? [
     { path: '/admin', label: 'Admin Dashboard' }
   ] : []
@@ -66,14 +66,14 @@ export default function Layout({ children }: LayoutProps) {
                 to={link.path}
                 className={`nav-link ${
                   location.pathname === link.path ? 'nav-link-active' : ''
-                } ${link.path === '/admin' ? 'text-red-600 dark:text-red-400 font-semibold' : ''}`}
+                } ${link.path === '/admin' ? 'text-primary-600 dark:text-primary-400 font-semibold' : ''}`}
               >
                 {link.label}
               </Link>
             ))}
             
-            {/* Add Gym - Only for gym owners */}
-            {isGymOwner && (
+            {/* Add Gym - For both gym owners and admins */}
+            {(isGymOwner || isAdmin) && (
               <Link
                 to="/add-gym"
                 className="text-primary-600 dark:text-primary-400 hover:text-primary-500 dark:hover:text-primary-300"
@@ -157,52 +157,69 @@ export default function Layout({ children }: LayoutProps) {
                        bg-white dark:bg-dark-100"
             >
               <div className="container mx-auto px-4 py-4 space-y-4">
-                {allNavLinks.map(link => (
-                  <Link
-                    key={link.path}
-                    to={link.path}
-                    className={`block nav-link ${
-                      location.pathname === link.path ? 'nav-link-active' : ''
-                    } ${link.path === '/admin' ? 'text-red-600 dark:text-red-400 font-semibold' : ''}`}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+                {/* Navigation Links */}
+                <div className="space-y-4">
+                  {allNavLinks.map(link => (
+                    <Link
+                      key={link.path}
+                      to={link.path}
+                      className={`block nav-link ${
+                        location.pathname === link.path ? 'nav-link-active' : ''
+                      } ${link.path === '/admin' ? 'text-primary-600 dark:text-primary-400 font-semibold' : ''}`}
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                  
+                  {/* Add Gym - Mobile version for both gym owners and admins */}
+                  {(isGymOwner || isAdmin) && (
+                    <Link
+                      to="/add-gym"
+                      className="flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-500 dark:hover:text-primary-300"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      <BuildingOfficeIcon className="h-5 w-5 mr-2" />
+                      Add Gym
+                    </Link>
+                  )}
+                </div>
                 
-                {/* Mobile Auth Links */}
-                {user ? (
-                  <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-dark-200">
-                    <div className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
-                      <UserCircleIcon className="h-5 w-5" />
-                      <span>{profile?.full_name || profile?.username || user.email}</span>
+                {/* Mobile Auth Links - with more space */}
+                <div className="pt-8 border-t border-gray-200 dark:border-dark-200">
+                  {user ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
+                        <UserCircleIcon className="h-5 w-5" />
+                        <span>{profile?.full_name || profile?.username || user.email}</span>
+                      </div>
+                      <button 
+                        onClick={handleSignOut}
+                        className="btn-secondary w-full text-center"
+                        disabled={loading}
+                      >
+                        {loading ? 'Signing out...' : 'Sign Out'}
+                      </button>
                     </div>
-                    <button 
-                      onClick={handleSignOut}
-                      className="btn-secondary w-full text-center"
-                      disabled={loading}
-                    >
-                      {loading ? 'Signing out...' : 'Sign Out'}
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <Link 
-                      to="/signin"
-                      className="btn-secondary w-full text-center"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Sign In
-                    </Link>
-                    <Link 
-                      to="/signup"
-                      className="btn-primary w-full text-center"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Sign Up
-                    </Link>
-                  </>
-                )}
+                  ) : (
+                    <div className="space-y-4">
+                      <Link 
+                        to="/signin"
+                        className="btn-secondary w-full text-center"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        Sign In
+                      </Link>
+                      <Link 
+                        to="/signup"
+                        className="btn-primary w-full text-center"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        Sign Up
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </div>
             </motion.div>
           )}

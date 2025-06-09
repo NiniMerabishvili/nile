@@ -1,3 +1,4 @@
+// import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import type { Variants } from 'framer-motion'
@@ -8,9 +9,14 @@ import {
   MagnifyingGlassIcon,
   CalendarIcon,
   ArrowRightIcon,
+  BuildingOfficeIcon,
 } from '@heroicons/react/24/outline'
+import { useAuth } from '@/context/AuthContext'
 
 export default function Home() {
+  const { isAdmin, isGymOwner } = useAuth()
+  const videoSrc = '/gym-video.mp4'
+
   const fadeIn: Variants = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0, transition: { duration: 0.6 } }
@@ -21,29 +27,13 @@ export default function Home() {
     animate: { opacity: 1, y: 0, transition: { duration: 0.6, delay } }
   })
 
-  // Supabase video URL
-  const videoSrc = "https://kqwmclhqtjbpxfjswnoa.supabase.co/storage/v1/object/sign/videos/animagaria.mp4?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV85ZWZkOTkxNS0xZjE0LTQ5M2EtYjhiYS02NmMwY2U2ZTcxNGUiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJ2aWRlb3MvYW5pbWFnYXJpYS5tcDQiLCJpYXQiOjE3NDkzOTU1MzcsImV4cCI6MTc4MDkzMTUzN30.4OXCF2hpW65RN7loGrlj0xS0O4H_R9W3dseqkesLAx4"
-
   return (
-    <div className="space-y-12 md:space-y-20">
-      {/* Hero Section - Redesigned */}
-      <section className="relative bg-white dark:bg-dark-100 -mt-8 pt-8 md:pt-16 overflow-hidden">
-        {/* Large Stroked Background Text */}
-        <motion.div 
-          initial={{ opacity: 0, y: 50 }}
-          animate={{ opacity: 1, y: 0, transition: { delay: 0.4, duration: 0.8 } }}
-          className="absolute inset-0 flex items-center justify-center z-0"
-        >
-          <div className="text-stroke text-stroke-2 text-gray-300/30 dark:text-dark-300/20 select-none pointer-events-none font-display font-bold"
-              style={{ fontSize: 'clamp(10rem, 30vw, 25rem)', lineHeight: '0.8'}} // Responsive font size
-          >
-            NILE
-          </div>
-        </motion.div>
-
-        <div className="container mx-auto px-4 relative z-10"> {/* Ensure content is above stroked text */}
-          <div className="grid md:grid-cols-2 gap-8 items-center min-h-[calc(100vh-4rem)] md:min-h-[calc(100vh-8rem)] py-12 md:py-0">
-            {/* Left Column: Text Content & Buttons */}
+    <div className="space-y-20">
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="container mx-auto px-4 py-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            {/* Left Column: Text */}
             <motion.div
               initial="initial"
               animate="animate"
@@ -71,6 +61,16 @@ export default function Home() {
                 >
                   Find Trainers
                 </Link>
+                {/* Add Gym button for admins and gym owners */}
+                {(isAdmin || isGymOwner) && (
+                  <Link 
+                    to="/add-gym" 
+                    className="btn-primary bg-primary-600 hover:bg-primary-700 text-white px-8 py-3 text-lg shadow-lg hover:shadow-xl transition-all duration-300 ease-out transform hover:-translate-y-0.5 w-full sm:w-auto flex items-center justify-center"
+                  >
+                    <BuildingOfficeIcon className="h-5 w-5 mr-2" />
+                    Add Gym
+                  </Link>
+                )}
               </div>
             </motion.div>
 

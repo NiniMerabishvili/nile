@@ -103,34 +103,37 @@ export default function Gyms() {
 
   return (
     <div className="space-y-8">
-      {/* Search Header */}
-      <div className="-mt-8 py-12 bg-gradient-to-r from-primary-600 to-primary-700">
-        <div className="container mx-auto px-4">
-          <motion.div
-            initial="initial"
-            animate="animate"
-            variants={fadeIn}
-            className="max-w-2xl mx-auto space-y-4"
-          >
-            <h1 className="text-4xl font-bold text-white text-center">
-              Find Your Perfect Gym
-            </h1>
-            <p className="text-primary-100 text-center text-lg">
-              Discover amazing fitness facilities around the world
-            </p>
+      {/* Page Title and Search - No background, directly on body */}
+      <div className="container mx-auto px-4">
+        <motion.div
+          initial="initial"
+          animate="animate"
+          variants={fadeIn}
+          className="text-center mb-8"
+        >
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+            Find Your Perfect Gym
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 text-lg mb-8">
+            Discover amazing fitness facilities around the world
+          </p>
+          
+          {/* Search bar directly on page */}
+          <div className="max-w-2xl mx-auto">
             <div className="relative">
               <input
                 type="text"
                 placeholder="Search by location or gym name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full px-6 py-4 pl-12 rounded-xl border-0 shadow-lg text-lg 
-                         focus:ring-2 focus:ring-primary-300 focus:outline-none"
+                className="w-full px-6 py-4 pl-12 rounded-xl border border-gray-300 dark:border-dark-400 shadow-lg text-lg 
+                         focus:ring-2 focus:ring-primary-500 focus:border-primary-500 focus:outline-none
+                         bg-white dark:bg-dark-200 text-gray-900 dark:text-white"
               />
               <MagnifyingGlassIcon className="absolute left-4 top-1/2 transform -translate-y-1/2 h-6 w-6 text-gray-400" />
             </div>
-          </motion.div>
-        </div>
+          </div>
+        </motion.div>
       </div>
 
       <div className="container mx-auto px-4">
@@ -165,34 +168,34 @@ export default function Gyms() {
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     City
                   </label>
-              <select 
+                  <select 
                     name="city" 
                     value={filters.city}
-                onChange={handleFilterChange}
+                    onChange={handleFilterChange}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-dark-400 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-dark-300"
-              >
+                  >
                     <option value="">All Cities</option>
                     {getUniqueValues('city').map(city => (
                       <option key={city} value={city}>{city}</option>
                     ))}
-              </select>
+                  </select>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Country
                   </label>
-              <select 
+                  <select 
                     name="country" 
                     value={filters.country}
-                onChange={handleFilterChange}
+                    onChange={handleFilterChange}
                     className="w-full px-4 py-2 border border-gray-300 dark:border-dark-400 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-white dark:bg-dark-300"
                   >
                     <option value="">All Countries</option>
                     {getUniqueValues('country').map(country => (
                       <option key={country} value={country}>{country}</option>
                     ))}
-              </select>
+                  </select>
                 </div>
               </div>
 
@@ -201,113 +204,97 @@ export default function Gyms() {
                   Showing {filteredGyms.length} of {gyms.length} gyms
                 </span>
                 <button
-                  onClick={() => setFilters({ city: '', country: '' })}
-                  className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+                  onClick={() => {
+                    setFilters({ city: '', country: '' })
+                    setSearchQuery('')
+                  }}
+                  className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
                 >
-                  Clear filters
+                  Clear all filters
                 </button>
               </div>
             </motion.div>
           )}
         </motion.div>
 
-        {/* Loading State */}
+        {/* Results */}
         {loading ? (
-          <div className="flex items-center justify-center py-16">
+          <div className="flex items-center justify-center py-12">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-        </div>
+          </div>
         ) : filteredGyms.length === 0 ? (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="text-center py-16"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12"
           >
             <BuildingOfficeIcon className="mx-auto h-16 w-16 text-gray-400 mb-4" />
             <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
               No gyms found
             </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              {searchQuery || filters.city || filters.country
-                ? 'Try adjusting your search criteria'
-                : 'No gyms are available at the moment'
-              }
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              Try adjusting your search criteria or clearing the filters.
             </p>
+            <button
+              onClick={() => {
+                setFilters({ city: '', country: '' })
+                setSearchQuery('')
+              }}
+              className="btn-primary"
+            >
+              Clear Filters
+            </button>
           </motion.div>
         ) : (
-          /* Gym Grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredGyms.map((gym, index) => (
-            <motion.div
-              key={gym.id}
-              initial="initial"
-              whileInView="animate"
-              viewport={{ once: true }}
-              variants={staggerFadeIn(index * 0.1)}
-            >
-              <Link to={`/gyms/${gym.id}`} className="block">
-                  <div className="bg-white dark:bg-dark-200 rounded-xl shadow-sm border border-gray-100 dark:border-dark-300 overflow-hidden group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-                    {/* Image */}
-                    <div className="relative h-48 overflow-hidden">
-                      {gym.images && gym.images.length > 0 ? (
-                    <img
-                          src={gym.images[0]}
-                      alt={gym.name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement
-                            target.style.display = 'none'
-                            target.nextElementSibling?.classList.remove('hidden')
-                          }}
-                        />
-                      ) : null}
-                      <div className={`${gym.images && gym.images.length > 0 ? 'hidden' : ''} w-full h-full bg-gray-100 dark:bg-dark-400 flex items-center justify-center`}>
-                        <div className="text-center">
-                          <PhotoIcon className="h-12 w-12 text-gray-400 mx-auto mb-2" />
-                          <p className="text-gray-500 text-sm">No image available</p>
-                        </div>
-                  </div>
-                      
-                      {/* Image counter */}
-                      {gym.images && gym.images.length > 1 && (
-                        <div className="absolute top-3 right-3 bg-black/70 text-white px-2 py-1 rounded-full text-xs">
-                          +{gym.images.length - 1} more
-                  </div>
-                      )}
-                  </div>
-
-                    {/* Content */}
-                    <div className="p-6">
-                      <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                        {gym.name}
-                      </h3>
-                      
-                      <div className="flex items-center text-gray-600 dark:text-gray-400 mb-3">
-                        <MapPinIcon className="h-5 w-5 mr-2 flex-shrink-0" />
-                        <span className="truncate">{getLocationString(gym)}</span>
-                  </div>
-
-                      {gym.description && (
-                        <p className="text-gray-700 dark:text-gray-300 text-sm line-clamp-2 mb-4">
-                          {gym.description}
-                        </p>
-                      )}
-
-                  <div className="flex items-center justify-between">
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
-                          View Details
-                        </div>
-                        <div className="w-8 h-8 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center group-hover:bg-primary-600 group-hover:text-white transition-colors">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {filteredGyms.map((gym, index) => (
+              <motion.div
+                key={gym.id}
+                initial="initial"
+                animate="animate"
+                variants={staggerFadeIn(index * 0.1)}
+                className="card hover-card"
+              >
+                <Link to={`/gyms/${gym.id}`} className="block">
+                  {/* Gym Image */}
+                  <div className="relative h-48 mb-4 rounded-lg overflow-hidden">
+                    {gym.images && gym.images.length > 0 ? (
+                      <img
+                        src={gym.images[0]}
+                        alt={gym.name}
+                        className="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gray-200 dark:bg-dark-400 flex items-center justify-center">
+                        <PhotoIcon className="h-12 w-12 text-gray-400" />
                       </div>
+                    )}
+                    {gym.images && gym.images.length > 1 && (
+                      <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                        +{gym.images.length - 1} more
+                      </div>
+                    )}
                   </div>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
+
+                  {/* Gym Details */}
+                  <div>
+                    <h3 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">
+                      {gym.name}
+                    </h3>
+                    <div className="flex items-center text-gray-600 dark:text-gray-400 mb-3">
+                      <MapPinIcon className="h-4 w-4 mr-1" />
+                      <span className="text-sm">{getLocationString(gym)}</span>
+                    </div>
+                    {gym.description && (
+                      <p className="text-gray-600 dark:text-gray-400 text-sm line-clamp-2">
+                        {gym.description}
+                      </p>
+                    )}
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
         )}
       </div>
     </div>
