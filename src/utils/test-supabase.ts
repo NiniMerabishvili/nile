@@ -37,7 +37,7 @@ export async function testSupabaseConnection() {
     
     // Test profiles table access
     try {
-      const { data: profiles, error: profileError } = await supabase
+      const { error: profileError } = await supabase
         .from('profiles')
         .select('count')
         .limit(1)

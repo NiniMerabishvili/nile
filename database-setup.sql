@@ -1,4 +1,4 @@
--- Supabase Database Setup for Alni Application
+-- Supabase Database Setup for Nile Application
 
 -- Create profiles table
 CREATE TABLE IF NOT EXISTS profiles (

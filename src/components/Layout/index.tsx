@@ -53,9 +53,9 @@ export default function Layout({ children }: LayoutProps) {
         <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
           <Link 
             to="/" 
-            className="text-2xl font-bold text-gray-900 dark:text-white"
+            className="text-3xl font-bold font-big-noodle text-transparent bg-gradient-to-r from-primary-600 to-primary-800 bg-clip-text hover:from-primary-500 hover:to-primary-700 transition-all duration-300"
           >
-            Alni
+            NILE
           </Link>
           
           {/* Desktop Navigation */}
@@ -227,7 +227,7 @@ export default function Layout({ children }: LayoutProps) {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
             <div className="space-y-4">
               <Link to="/" className="text-2xl font-bold gradient-text">
-                Alni
+                Nile
               </Link>
               <p className="text-gray-600 dark:text-gray-400">
                 Discover and book the best gyms and trainers worldwide.
@@ -271,7 +271,7 @@ export default function Layout({ children }: LayoutProps) {
           </div>
           <div className="mt-12 pt-8 border-t border-gray-200 dark:border-dark-200">
             <div className="text-center text-gray-600 dark:text-gray-400">
-              <p>&copy; {new Date().getFullYear()} Alni. All rights reserved.</p>
+              <p>&copy; {new Date().getFullYear()} Nile. All rights reserved.</p>
             </div>
           </div>
         </div>

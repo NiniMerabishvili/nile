@@ -1,5 +1,5 @@
 {
-  "name": "alni",
+  "name": "nile",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -13,8 +13,10 @@
     "@headlessui/react": "^1.7.18",
     "@heroicons/react": "^2.2.0",
     "@supabase/supabase-js": "^2.39.7",
+    "@types/leaflet": "^1.9.8",
     "date-fns": "^3.3.1",
     "framer-motion": "^11.0.8",
+    "leaflet": "^1.9.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",

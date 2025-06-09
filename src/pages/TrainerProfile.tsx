@@ -1,14 +1,11 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import type { Variants } from 'framer-motion'
 import {
   MapPinIcon,
   StarIcon,
-  CalendarIcon,
   ClockIcon,
   AcademicCapIcon,
-  BriefcaseIcon,
   ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline'
 
@@ -19,7 +16,7 @@ const mockTrainer = {
   specialty: 'Strength Training',
   location: 'New York, USA',
   rating: 4.9,
-  reviews: 48,
+  reviewCount: 48,
   image: '/trainer1.jpg',
   experience: '8 years',
   price: '$60/hour',
@@ -62,7 +59,7 @@ const mockTrainer = {
       description: 'Best value for committed training'
     }
   ],
-  reviews: [
+  clientReviews: [
     {
       id: 1,
       name: 'Sarah M.',
@@ -81,7 +78,6 @@ const mockTrainer = {
 }
 
 export default function TrainerProfile() {
-  const { id } = useParams()
   const [selectedPackage, setSelectedPackage] = useState(mockTrainer.packages[0].id)
 
   const fadeIn: Variants = {
@@ -114,7 +110,7 @@ export default function TrainerProfile() {
                   <div className="flex items-center">
                     <StarIcon className="h-5 w-5 text-yellow-400 mr-2" />
                     <span>{mockTrainer.rating}</span>
-                    <span className="ml-2">({mockTrainer.reviews} reviews)</span>
+                    <span className="ml-2">({mockTrainer.reviewCount} reviews)</span>
                   </div>
                 </div>
               </div>
@@ -194,7 +190,7 @@ export default function TrainerProfile() {
             <div className="card">
               <h2 className="text-xl font-semibold mb-6">Client Reviews</h2>
               <div className="space-y-6">
-                {mockTrainer.reviews.map((review) => (
+                {mockTrainer.clientReviews.map((review) => (
                   <div key={review.id} className="border-b border-gray-200 dark:border-dark-300 last:border-0 pb-6 last:pb-0">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center">
@@ -237,39 +233,32 @@ export default function TrainerProfile() {
                     <button
                       key={pkg.id}
                       onClick={() => setSelectedPackage(pkg.id)}
-                      className={`w-full p-4 rounded-lg border-2 transition-colors ${
+                      className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
                         selectedPackage === pkg.id
                           ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20'
-                          : 'border-gray-200 dark:border-dark-300 hover:border-primary-600'
+                          : 'border-gray-200 dark:border-dark-300 hover:border-primary-300'
                       }`}
                     >
                       <div className="flex justify-between items-start mb-2">
                         <h3 className="font-semibold">{pkg.name}</h3>
-                        <span className="text-primary-600 font-semibold">
-                          {pkg.price}
-                        </span>
+                        <span className="font-bold text-primary-600">{pkg.price}</span>
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 text-left">
+                      <p className="text-sm text-gray-600 dark:text-gray-400">
                         {pkg.description}
                       </p>
                     </button>
                   ))}
                 </div>
                 <button className="btn-primary w-full mt-6">
-                  Book Now
+                  Book Selected Package
                 </button>
               </div>
 
               {/* Contact Card */}
-              <div className="card text-center">
-                <ChatBubbleLeftRightIcon className="h-8 w-8 mx-auto text-primary-600 mb-4" />
-                <h3 className="text-lg font-semibold mb-2">
-                  Have Questions?
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  Contact me directly to learn more about my training programs
-                </p>
-                <button className="btn-secondary w-full">
+              <div className="card">
+                <h2 className="text-xl font-semibold mb-4">Get in Touch</h2>
+                <button className="btn-secondary w-full flex items-center justify-center">
+                  <ChatBubbleLeftRightIcon className="h-5 w-5 mr-2" />
                   Send Message
                 </button>
               </div>

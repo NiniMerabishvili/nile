@@ -82,7 +82,7 @@ export default function About() {
         >
           <h2 className="text-3xl font-bold mb-4">Our Values</h2>
           <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            At Alni, we're driven by a set of core values that guide everything we do.
+            At Nile, we're driven by a set of core values that guide everything we do.
           </p>
         </motion.div>
 
@@ -121,7 +121,7 @@ export default function About() {
             <h2 className="text-3xl font-bold mb-6">Our Story</h2>
             <div className="space-y-4 text-gray-600 dark:text-gray-400">
               <p>
-                Founded in 2024, Alni was born from a simple observation: finding and
+                Founded in 2024, Nile was born from a simple observation: finding and
                 booking quality fitness facilities and trainers should be easier.
               </p>
               <p>
@@ -149,7 +149,7 @@ export default function About() {
         >
           <h2 className="text-3xl font-bold mb-4">Meet Our Team</h2>
           <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-            The passionate individuals behind Alni, working together to
+            The passionate individuals behind Nile, working together to
             revolutionize the fitness industry.
           </p>
         </motion.div>
@@ -191,7 +191,7 @@ export default function About() {
           </h2>
           <p className="text-primary-100 mb-8 max-w-2xl mx-auto">
             Whether you're a gym owner, trainer, or fitness enthusiast,
-            there's a place for you in the Alni community.
+            there's a place for you in the Nile community.
           </p>
           <button className="btn-primary bg-white text-primary-600 hover:bg-gray-100">
             Get Started

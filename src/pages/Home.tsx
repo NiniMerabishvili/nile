@@ -130,7 +130,7 @@ export default function Home() {
           variants={fadeIn}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl font-bold mb-4">Why Choose Alni</h2>
+          <h2 className="text-3xl font-bold mb-4">Why Choose Nile</h2>
           <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             We make it easy to find and book the perfect gym or trainer,
             wherever you are in the world.
@@ -185,7 +185,7 @@ export default function Home() {
           >
             <h2 className="text-3xl font-bold mb-4">How It Works</h2>
             <p className="text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
-              Getting started with Alni is easy. Follow these simple steps to
+              Getting started with Nile is easy. Follow these simple steps to
               find your perfect gym or trainer.
             </p>
           </motion.div>
@@ -246,7 +246,7 @@ export default function Home() {
           </h2>
           <p className="text-primary-100 mb-8 max-w-2xl mx-auto">
             Join thousands of people who have already found their perfect gym
-            or trainer through Alni.
+            or trainer through Nile.
           </p>
           <Link
             to="/gyms"

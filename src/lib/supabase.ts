@@ -26,6 +26,7 @@ export interface Gym {
   id: number  // int8 from your table
   created_at: string  // timestamptz
   owner_id: string  // uuid
+  owner_name?: string  // Added owner_name property
   name: string  // text
   description: string  // text
   address: string  // text
@@ -208,8 +209,7 @@ export async function signOut() {
 }
 
 export async function getCurrentUser() {
-  const { data: { user }, error } = await supabase.auth.getUser()
-  if (error) throw error
+  const { data: { user } } = await supabase.auth.getUser()
   return user
 }
 
@@ -220,8 +220,12 @@ export async function getUserProfile(userId: string) {
     .eq('id', userId)
     .single()
 
-  if (error) throw error
-  return data
+  if (error) {
+    console.error('Error fetching user profile:', error)
+    return null
+  }
+
+  return data as Profile
 }
 
 // Admin functions for gym management
@@ -271,7 +275,7 @@ export async function updateGymStatus(gymId: number, status: 'approved' | 'rejec
 export async function createGym(gymData: Omit<Gym, 'id' | 'created_at'>) {
   const { data, error } = await supabase
     .from('gyms')
-    .insert([{ ...gymData, status: 'pending' }])
+    .insert([gymData])
     .select()
     .single()
 
@@ -291,7 +295,7 @@ export async function getGymsByStatus(status: 'pending' | 'approved' | 'rejected
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error(`Error fetching ${status} gyms:`, error)
+    console.error('Error fetching gyms by status:', error)
     return []
   }
 
@@ -299,10 +303,7 @@ export async function getGymsByStatus(status: 'pending' | 'approved' | 'rejected
 }
 
 export function getImageUrl(path: string): string {
-  const { data } = supabase.storage
-    .from('your-bucket-name')  // Replace with your bucket name
-    .getPublicUrl(path)
-  
+  const { data } = supabase.storage.from('gym-images').getPublicUrl(path)
   return data.publicUrl
 }
 
@@ -323,18 +324,16 @@ export async function createGymByOwner(gymData: {
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {
-    throw new Error('User must be authenticated')
-  }
-
-  const gymWithOwner = {
-    ...gymData,
-    owner_id: user.id,
-    status: 'pending' as const
+    throw new Error('User must be authenticated to create a gym')
   }
 
   const { data, error } = await supabase
     .from('gyms')
-    .insert([gymWithOwner])
+    .insert([{
+      ...gymData,
+      owner_id: user.id,
+      status: 'pending'
+    }])
     .select()
     .single()
 
@@ -355,7 +354,7 @@ export async function getGymsByOwner(ownerId: string) {
     .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching owner gyms:', error)
+    console.error('Error fetching gyms by owner:', error)
     return []
   }
 

@@ -1,4 +1,4 @@
-# Alni - Global Gym & Trainer Booking Platform
+# Nile - Global Gym & Trainer Booking Platform
 
 A modern web application for discovering and booking gyms and personal trainers worldwide.
 
@@ -33,8 +33,8 @@ A modern web application for discovering and booking gyms and personal trainers 
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/alni.git
-   cd alni
+   git clone https://github.com/yourusername/nile.git
+   cd nile
    ```
 
 2. Install dependencies:
@@ -58,7 +58,7 @@ A modern web application for discovering and booking gyms and personal trainers 
 ## Project Structure
 
 ```
-alni/
+nile/
 ├── src/
 │   ├── components/     # Reusable UI components
 │   ├── pages/         # Page components

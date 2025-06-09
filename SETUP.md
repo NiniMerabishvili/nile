@@ -6,7 +6,7 @@ Your application needs Supabase environment variables to work properly. Follow t
 
 ### 1. Create a `.env` file in your project root
 
-Create a file named `.env` in the `alni` directory with the following content:
+Create a file named `.env` in the `nile` directory with the following content:
 
 ```env
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
