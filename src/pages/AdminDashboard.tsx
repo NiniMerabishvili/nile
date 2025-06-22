@@ -18,7 +18,7 @@ import {
   PlayIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/context/AuthContext'
-import { supabase, type Gym, getPendingTutorials, updateTutorialStatus, type Tutorial, getPendingGyms, debugTutorials } from '@/lib/supabase'
+import { supabase, type Gym, getPendingTutorials, updateTutorialStatus, type Tutorial, getPendingGyms } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import DebugAdmin from '@/components/DebugAdmin'
 import ImageDebugger from '@/components/ImageDebugger'
