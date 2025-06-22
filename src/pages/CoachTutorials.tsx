@@ -61,10 +61,7 @@ export default function CoachTutorials() {
       if (!user?.id) {
         throw new Error('User ID is required');
       }
-      await createTutorial({
-        ...tutorialForm,
-        coach_id: user.id
-      });
+      await createTutorial(tutorialForm);
       toast.success('Tutorial submitted for review! You will be notified once it\'s approved.');
       setShowUploadModal(false);
       resetForm();
