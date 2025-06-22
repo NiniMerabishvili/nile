@@ -11,7 +11,10 @@ import TrainerProfile from '@/pages/TrainerProfile'
 import SignIn from '@/pages/SignIn'
 import SignUp from '@/pages/SignUp'
 import AdminDashboard from '@/pages/AdminDashboard'
+import GymOwnerDashboard from '@/pages/GymOwnerDashboard'
+import CoachDashboard from '@/pages/CoachDashboard'
 import AddGym from '@/pages/AddGym'
+import Profile from '@/pages/Profile'
 import { ThemeProvider } from '@/context/ThemeContext'
 import { AuthProvider } from '@/context/AuthContext'
 
@@ -35,7 +38,10 @@ function App() {
               <Route path="/signin" element={<SignIn />} />
               <Route path="/signup" element={<SignUp />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/gym-owner" element={<GymOwnerDashboard />} />
+              <Route path="/coach" element={<CoachDashboard />} />
               <Route path="/add-gym" element={<AddGym />} />
+              <Route path="/profile" element={<Profile />} />
             </Routes>
           </Layout>
           <Toaster position="top-right" />

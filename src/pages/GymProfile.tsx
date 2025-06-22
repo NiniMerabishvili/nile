@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import type { Variants } from 'framer-motion'
 import {
@@ -8,18 +8,20 @@ import {
   EnvelopeIcon,
   GlobeAltIcon,
   ArrowLeftIcon,
-  BuildingOfficeIcon,
   PhotoIcon,
   CalendarIcon,
   TagIcon,
-  UserIcon,
+  UserIcon
 } from '@heroicons/react/24/outline'
-import { supabase, type Gym } from '@/lib/supabase'
+import { getGymById, type Gym } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import LocationDisplay from '@/components/LocationDisplay'
+import GymImageDisplay from '@/components/GymImageDisplay'
+import LoadingSpinner from '@/components/LoadingSpinner'
 
 export default function GymProfile() {
-  const { id } = useParams()
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [gym, setGym] = useState<Gym | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,29 +39,21 @@ export default function GymProfile() {
       setLoading(true)
       setError(null)
 
-      const { data, error: fetchError } = await supabase
-        .from('gyms')
-        .select('*')
-        .eq('id', gymId)
-        .single()
-
-      if (fetchError) {
-        console.error('Error fetching gym:', fetchError)
-        setError('Failed to load gym details')
-        toast.error('Failed to load gym details')
-        return
-      }
-
-      if (!data) {
+      const gymData = await getGymById(gymId)
+      
+      if (!gymData) {
         setError('Gym not found')
+        toast.error('Gym not found')
+        navigate('/gyms')
         return
       }
 
-      setGym(data)
+      setGym(gymData)
     } catch (error) {
-      console.error('Unexpected error:', error)
-      setError('An unexpected error occurred')
-      toast.error('An unexpected error occurred')
+      console.error('Error fetching gym:', error)
+      setError('Failed to load gym details')
+      toast.error('Failed to load gym details')
+      navigate('/gyms')
     } finally {
       setLoading(false)
     }
@@ -71,7 +65,7 @@ export default function GymProfile() {
   }
 
   const getLocationString = (gym: Gym) => {
-    const parts = [gym.address, gym.city, gym.country].filter(Boolean)
+    const parts = [gym.city, gym.country].filter(Boolean)
     return parts.join(', ')
   }
 
@@ -92,30 +86,27 @@ export default function GymProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
+      <div className="container mx-auto px-4 py-12">
+        <div className="flex justify-center">
+          <LoadingSpinner size="lg" />
+        </div>
       </div>
     )
   }
 
   if (error || !gym) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="container mx-auto px-4 py-12">
         <div className="text-center">
-          <BuildingOfficeIcon className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-          <h3 className="text-xl font-medium text-gray-900 dark:text-white mb-2">
-            {error || 'Gym not found'}
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            The gym you're looking for doesn't exist or has been removed.
-          </p>
-          <Link
-            to="/gyms"
-            className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Gym not found
+          </h1>
+          <button
+            onClick={() => navigate('/gyms')}
+            className="btn-primary"
           >
-            <ArrowLeftIcon className="h-5 w-5 mr-2" />
             Back to Gyms
-          </Link>
+          </button>
         </div>
       </div>
     )
@@ -160,94 +151,48 @@ export default function GymProfile() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Back Button */}
-      <div className="container mx-auto px-4 pt-4">
-        <Link
-          to="/gyms"
-          className="inline-flex items-center text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors"
-        >
-          <ArrowLeftIcon className="h-5 w-5 mr-2" />
-          Back to Gyms
-        </Link>
-      </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-100">
+      {/* Hero Section with Images */}
+      <section className="relative bg-white dark:bg-dark-200">
+        <div className="container mx-auto px-4 py-8">
+          {/* Back Button */}
+          <motion.button
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            onClick={() => navigate('/gyms')}
+            className="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors"
+          >
+            <ArrowLeftIcon className="h-5 w-5 mr-2" />
+            Back to Gyms
+          </motion.button>
 
-      {/* Attractive Gallery Section */}
-      <section className="relative">
-        <div className="container mx-auto px-4">
+          {/* Image Gallery */}
           <motion.div
             initial="initial"
             animate="animate"
             variants={fadeIn}
-            className="relative"
+            className="w-full"
           >
             {validImages.length > 0 ? (
-              <div className="grid grid-cols-4 gap-3 h-[500px] rounded-2xl overflow-hidden shadow-2xl">
-                {/* Main large image */}
-                <div className="col-span-3 relative group cursor-pointer" onClick={navigateToGallery}>
-                  <img
-                    src={validImages[0]}
-                    alt={gym.name}
-                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                    onError={() => handleImageError(0)}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300">
-                    <div className="absolute bottom-4 left-4 text-white">
-                      <PhotoIcon className="h-8 w-8 mb-2" />
-                      <p className="text-sm font-medium">View Gallery</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Side images */}
-                <div className="col-span-1 grid grid-rows-2 gap-3">
-                  {validImages.slice(1, 3).map((image, idx) => (
-                    <div 
-                      key={idx} 
-                      className="relative group cursor-pointer rounded-lg overflow-hidden"
-                      onClick={navigateToGallery}
-                    >
-                      <img
-                        src={image}
-                        alt={`${gym.name} ${idx + 2}`}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        onError={() => handleImageError(idx + 1)}
-                      />
-                      {idx === 1 && validImages.length > 3 && (
-                        <div className="absolute inset-0 bg-black/70 flex items-center justify-center">
-                          <div className="text-center text-white">
-                            <PhotoIcon className="h-6 w-6 mx-auto mb-1" />
-                            <span className="text-sm font-semibold">
-                              +{validImages.length - 3} more
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  
-                  {validImages.length < 3 && (
-                    <div className="bg-gray-100 dark:bg-dark-300 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-dark-400">
-                      <PhotoIcon className="h-8 w-8 text-gray-400" />
-                    </div>
-                  )}
-                </div>
-              </div>
+              <GymImageDisplay 
+                images={validImages} 
+                gymName={gym.name} 
+                className="h-96" 
+                showGallery={true}
+              />
             ) : (
-              <div className="h-[500px] bg-gray-100 dark:bg-dark-300 rounded-2xl flex items-center justify-center">
+              <div className="w-full h-96 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-dark-300 dark:to-dark-400 rounded-xl flex items-center justify-center">
                 <div className="text-center">
                   <PhotoIcon className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 text-lg">No images available</p>
+                  <p className="text-lg text-gray-500 dark:text-gray-400">No images available</p>
                 </div>
               </div>
             )}
 
-            {/* Gallery hint */}
-            {validImages.length > 0 && (
+            {validImages.length > 1 && (
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0, transition: { delay: 0.3 } }}
                 className="mt-4 text-center"
               >
                 <button
@@ -283,6 +228,27 @@ export default function GymProfile() {
                 <span className="text-lg">{getLocationString(gym)}</span>
               </div>
             </div>
+
+            {/* Categories Section - Only show if categories exist */}
+            {gym.categories && gym.categories.length > 0 && (
+              <div className="card">
+                <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center">
+                  <TagIcon className="h-6 w-6 mr-3 text-primary-600" />
+                  Categories
+                </h2>
+                <div className="flex flex-wrap gap-3">
+                  {gym.categories.map((category, index) => (
+                    <span
+                      key={category.id || index}
+                      className="inline-flex items-center px-4 py-2 bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-200 rounded-full text-sm font-medium hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors"
+                    >
+                      <TagIcon className="h-4 w-4 mr-2" />
+                      {category.name}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* About Section */}
             {gym.description && (
@@ -356,6 +322,18 @@ export default function GymProfile() {
                     </div>
                   )}
 
+                  {gym.categories && gym.categories.length > 0 && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-gray-600 dark:text-gray-400">
+                        <TagIcon className="h-5 w-5 mr-2" />
+                        <span>Categories:</span>
+                      </div>
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {gym.categories.length} categor{gym.categories.length === 1 ? 'y' : 'ies'}
+                      </span>
+                    </div>
+                  )}
+
                   {gym.images && (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center text-gray-600 dark:text-gray-400">
@@ -365,33 +343,6 @@ export default function GymProfile() {
                       <span className="text-gray-900 dark:text-white font-medium">
                         {validImages.length} image{validImages.length !== 1 ? 's' : ''}
                       </span>
-                    </div>
-                  )}
-
-                  {gym.status && (
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center text-gray-600 dark:text-gray-400">
-                        <TagIcon className="h-5 w-5 mr-2" />
-                        <span>Status:</span>
-                      </div>
-                      <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium">
-                        <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
-                          gym.status === 'approved' 
-                            ? 'bg-green-400' 
-                            : gym.status === 'pending' 
-                            ? 'bg-yellow-400' 
-                            : 'bg-red-400'
-                        }`}></span>
-                        <span className={
-                          gym.status === 'approved' 
-                            ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/20' 
-                            : gym.status === 'pending' 
-                            ? 'text-yellow-700 bg-yellow-100 dark:text-yellow-300 dark:bg-yellow-900/20' 
-                            : 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/20'
-                        }>
-                          {gym.status.charAt(0).toUpperCase() + gym.status.slice(1)}
-                        </span>
-                      </div>
                     </div>
                   )}
                 </div>

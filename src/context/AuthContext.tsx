@@ -9,7 +9,8 @@ interface AuthContextType {
   loading: boolean
   isAdmin: boolean
   isGymOwner: boolean
-  signUp: (email: string, password: string, fullName: string, isGymOwner?: boolean) => Promise<void>
+  isCoach: boolean
+  signUp: (email: string, password: string, fullName: string, isGymOwner?: boolean, isCoach?: boolean) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -26,6 +27,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Computed properties
   const isAdmin = profile?.role === 'admin'
   const isGymOwner = profile?.role === 'gym_owner'
+  const isCoach = profile?.role === 'coach'
 
   useEffect(() => {
     // Prevent double initialization in React StrictMode
@@ -120,17 +122,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const createProfile = async (user: User, isGymOwner: boolean = false) => {
+  const createProfile = async (user: User, isGymOwner: boolean = false, isCoach: boolean = false) => {
     try {
-      // Check user metadata for gym owner status
       const isGymOwnerFromMetadata = user.user_metadata?.is_gym_owner || isGymOwner
+      const isCoachFromMetadata = user.user_metadata?.is_coach || isCoach
       
+      let role: 'user' | 'gym_owner' | 'coach' = 'user'
+      if (isCoachFromMetadata) {
+        role = 'coach'
+      } else if (isGymOwnerFromMetadata) {
+        role = 'gym_owner'
+      }
+
       const profileData = {
         id: user.id,
         username: user.email?.split('@')[0] || 'user',
         full_name: user.user_metadata?.full_name || '',
         email: user.email || '',
-        role: isGymOwnerFromMetadata ? 'gym_owner' as const : 'user' as const
+        role
       }
 
       console.log('Creating profile with data:', profileData)
@@ -163,20 +172,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signUp = async (email: string, password: string, fullName: string, isGymOwner: boolean = false) => {
+  const signUp = async (email: string, password: string, fullName: string, isGymOwner: boolean = false, isCoach: boolean = false) => {
     setLoading(true)
     try {
-      console.log('Starting signup with gym owner:', isGymOwner)
+      console.log('Starting signup with gym owner:', isGymOwner, 'coach:', isCoach)
       
-      // Sign up without email confirmation
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: undefined, // Disable email confirmation
+          emailRedirectTo: undefined,
           data: {
             full_name: fullName,
-            is_gym_owner: isGymOwner
+            is_gym_owner: isGymOwner,
+            is_coach: isCoach
           }
         }
       })
@@ -185,13 +194,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (data.user) {
         console.log('User created:', data.user)
-        
-        // Create profile immediately since no email confirmation is needed
-        await createProfile(data.user, isGymOwner)
-        
-        // Set user state immediately
+        await createProfile(data.user, isGymOwner, isCoach)
         setUser(data.user)
-        
         toast.success('Account created and signed in successfully!')
       }
     } catch (error: any) {
@@ -265,6 +269,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loading,
       isAdmin,
       isGymOwner,
+      isCoach,
       signUp,
       signIn,
       signOut,

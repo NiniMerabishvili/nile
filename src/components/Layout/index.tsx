@@ -18,7 +18,7 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const { theme, toggleTheme } = useTheme()
-  const { user, profile, signOut, loading, isAdmin, isGymOwner } = useAuth()
+  const { user, profile, signOut, loading, isAdmin, isGymOwner, isCoach } = useAuth()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const location = useLocation()
 
@@ -30,12 +30,22 @@ export default function Layout({ children }: LayoutProps) {
     { path: '/contact', label: 'Contact' }
   ]
 
-  // Add admin link if user is admin - changed to purple
+  // Add admin link if user is admin
   const adminLinks = isAdmin ? [
     { path: '/admin', label: 'Admin Dashboard' }
   ] : []
 
-  const allNavLinks = [...navLinks, ...adminLinks]
+  // Add gym owner dashboard if user is gym owner (but not admin)
+  const gymOwnerLinks = (isGymOwner && !isAdmin) ? [
+    { path: '/gym-owner', label: 'Dashboard' }
+  ] : []
+
+  // Add coach dashboard if user is coach (but not admin)
+  const coachLinks = (isCoach && !isAdmin) ? [
+    { path: '/coach', label: 'My Tutorials' }
+  ] : []
+
+  const allNavLinks = [...navLinks, ...adminLinks, ...gymOwnerLinks, ...coachLinks]
 
   const handleSignOut = async () => {
     try {
@@ -66,7 +76,7 @@ export default function Layout({ children }: LayoutProps) {
                 to={link.path}
                 className={`nav-link ${
                   location.pathname === link.path ? 'nav-link-active' : ''
-                } ${link.path === '/admin' ? 'text-primary-600 dark:text-primary-400 font-semibold' : ''}`}
+                } ${(link.path === '/admin' || link.path === '/gym-owner') ? 'text-primary-600 dark:text-primary-400 font-semibold' : ''}`}
               >
                 {link.label}
               </Link>
@@ -102,10 +112,18 @@ export default function Layout({ children }: LayoutProps) {
             <div className="hidden md:flex items-center space-x-2">
               {user ? (
                 <div className="flex items-center space-x-2">
-                  <div className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
+                  <Link
+                    to="/profile"
+                    className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+                  >
                     <UserCircleIcon className="h-5 w-5" />
                     <span>{profile?.full_name || profile?.username || user.email}</span>
-                  </div>
+                    {(isAdmin || isGymOwner || isCoach) && (
+                      <span className="px-2 py-1 bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-200 rounded-full text-xs font-medium">
+                        {isAdmin ? 'Admin' : isGymOwner ? 'Gym Owner' : 'Coach'}
+                      </span>
+                    )}
+                  </Link>
                   <button 
                     onClick={handleSignOut}
                     className="btn-secondary px-4 py-2 text-sm"
@@ -165,7 +183,7 @@ export default function Layout({ children }: LayoutProps) {
                       to={link.path}
                       className={`block nav-link ${
                         location.pathname === link.path ? 'nav-link-active' : ''
-                      } ${link.path === '/admin' ? 'text-primary-600 dark:text-primary-400 font-semibold' : ''}`}
+                      } ${(link.path === '/admin' || link.path === '/gym-owner') ? 'text-primary-600 dark:text-primary-400 font-semibold' : ''}`}
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       {link.label}

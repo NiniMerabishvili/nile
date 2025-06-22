@@ -187,4 +187,39 @@ CREATE POLICY "Only admins can view contact messages." ON contact_messages
   ); 
 
 -- Update existing gyms to approved status if they don't have a status
-UPDATE gyms SET status = 'approved' WHERE status IS NULL; 
+UPDATE gyms SET status = 'approved' WHERE status IS NULL;
+
+-- Updated policies for categories table
+-- Categories are viewable by everyone
+CREATE POLICY "Categories are viewable by everyone." ON categories
+  FOR SELECT USING (true);
+
+-- Admins and gym owners can create categories
+CREATE POLICY "Admins and gym owners can insert categories." ON categories
+  FOR INSERT WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE profiles.id = auth.uid() 
+      AND profiles.role IN ('admin', 'gym_owner')
+    )
+  );
+
+-- Only admins can update categories
+CREATE POLICY "Only admins can update categories." ON categories
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE profiles.id = auth.uid() 
+      AND profiles.role = 'admin'
+    )
+  );
+
+-- Only admins can delete categories
+CREATE POLICY "Only admins can delete categories." ON categories
+  FOR DELETE USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE profiles.id = auth.uid() 
+      AND profiles.role = 'admin'
+    )
+  ); 
