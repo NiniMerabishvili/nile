@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   BuildingOfficeIcon,
   TagIcon,
-  ChartBarIcon,
   ClockIcon,
   CheckIcon,
   XMarkIcon,

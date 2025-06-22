@@ -943,7 +943,7 @@ export async function updateTutorialStatus(tutorialId: string, status: 'approved
   return true
 }
 
-export async function createTutorial(tutorialData: Omit<Tutorial, 'id' | 'created_at' | 'updated_at' | 'coach_earnings' | 'platform_fee' | 'status'>) {
+export async function createTutorial(tutorialData: Omit<Tutorial, 'id' | 'created_at' | 'updated_at' | 'coach_earnings' | 'platform_fee' | 'status' | 'coach_id'>) {
   const { data: { user } } = await supabase.auth.getUser()
   
   if (!user) {

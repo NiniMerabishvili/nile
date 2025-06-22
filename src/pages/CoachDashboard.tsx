@@ -69,7 +69,13 @@ export default function CoachDashboard() {
   const handleCreateTutorial = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await createTutorial(tutorialForm);
+      if (!user) {
+        throw new Error('User not found');
+      }
+      await createTutorial({
+        ...tutorialForm,
+        coach_id: user.id
+      });
       toast.success('Tutorial submitted for review! You will be notified once it\'s approved.');
       setShowUploadModal(false);
       resetForm();
@@ -250,7 +256,7 @@ export default function CoachDashboard() {
                   <span className="text-sm text-gray-500">Difficulty:</span>
                   <span className="text-sm font-medium capitalize">{tutorial.difficulty_level}</span>
                 </div>
-                {tutorial.duration_minutes > 0 && (
+                {tutorial.duration_minutes != null && tutorial.duration_minutes > 0 && (
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-500">Duration:</span>
                     <span className="text-sm font-medium">{tutorial.duration_minutes} min</span>
