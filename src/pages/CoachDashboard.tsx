@@ -68,14 +68,10 @@ export default function CoachDashboard() {
 
   const handleCreateTutorial = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.id) return;
+
     try {
-      if (!user) {
-        throw new Error('User not found');
-      }
-      await createTutorial({
-        ...tutorialForm,
-        coach_id: user.id
-      });
+      await createTutorial(tutorialForm);
       toast.success('Tutorial submitted for review! You will be notified once it\'s approved.');
       setShowUploadModal(false);
       resetForm();
