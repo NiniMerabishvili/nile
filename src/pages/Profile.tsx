@@ -13,12 +13,15 @@ import {
   EnvelopeIcon,
   PhoneIcon,
   UserIcon,
-  LockClosedIcon
+  LockClosedIcon,
+  ExclamationTriangleIcon,
+  AcademicCapIcon,
 } from '@heroicons/react/24/outline'
 import { useAuth } from '@/context/AuthContext'
-import { supabase, getGymsByOwner, type Gym } from '@/lib/supabase'
+import { supabase, getGymsByOwner, getIncompleteCoachProfile, createCoachProfile, type Gym } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import GymImageDisplay from '@/components/GymImageDisplay'
+import CoachRegistrationForm from '@/components/CoachRegistrationForm'
 
 interface ProfileData {
   full_name: string
@@ -41,7 +44,11 @@ export default function Profile() {
   const [passwordRequested, setPasswordRequested] = useState(false)
   const [userGyms, setUserGyms] = useState<Gym[]>([])
   const [gymsLoading, setGymsLoading] = useState(false)
+  const [incompleteCoachProfile, setIncompleteCoachProfile] = useState<any>(null)
+  const [showCoachForm, setShowCoachForm] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const isCoach = profile?.role === 'coach'
 
   useEffect(() => {
     if (profile) {
@@ -59,6 +66,29 @@ export default function Profile() {
       fetchUserGyms()
     }
   }, [isAdmin, isGymOwner, user])
+
+  useEffect(() => {
+    if (isCoach && user) {
+      checkCoachProfileCompletion()
+    }
+  }, [isCoach, user])
+
+  const checkCoachProfileCompletion = async () => {
+    if (!user) return
+    
+    try {
+      console.log('Checking coach profile completion for user:', user.id)
+      const incompleteProfile = await getIncompleteCoachProfile(user.id)
+      console.log('Incomplete profile result:', incompleteProfile)
+      if (incompleteProfile) {
+        setIncompleteCoachProfile(incompleteProfile)
+      } else {
+        setIncompleteCoachProfile(null)
+      }
+    } catch (error) {
+      console.error('Error checking coach profile completion:', error)
+    }
+  }
 
   const fetchUserGyms = async () => {
     if (!user) return
@@ -99,25 +129,28 @@ export default function Profile() {
         throw new Error('Image size must be less than 5MB.')
       }
 
+      console.log('Starting upload for file:', file.name)
+
       // Clean up the user's avatar folder to ensure only one avatar exists.
       const { data: existingFiles, error: listError } = await supabase.storage
         .from('profiles')
         .list(user.id)
 
       if (listError) {
-        // This can happen if the folder doesn't exist yet, which is fine.
         console.log('Could not list storage directory, probably first upload.', listError.message)
       } else if (existingFiles && existingFiles.length > 0) {
+        console.log('Removing existing files:', existingFiles)
         const filesToRemove = existingFiles.map((file) => `${user.id}/${file.name}`)
         const { error: removeError } = await supabase.storage.from('profiles').remove(filesToRemove)
         if (removeError) {
           console.error('Failed to remove old avatar:', removeError.message)
-          // Don't block upload, just log the error.
         }
       }
 
       const fileExt = file.name.split('.').pop()?.toLowerCase()
       const filePath = `${user.id}/avatar_${Date.now()}.${fileExt}`
+
+      console.log('Uploading to path:', filePath)
 
       // Upload new image to Supabase Storage
       const { error: uploadError } = await supabase.storage
@@ -128,8 +161,11 @@ export default function Profile() {
         })
 
       if (uploadError) {
+        console.error('Upload error:', uploadError)
         throw uploadError
       }
+
+      console.log('Upload successful, getting public URL')
 
       // Get the public URL
       const { data } = supabase.storage.from('profiles').getPublicUrl(filePath)
@@ -138,6 +174,8 @@ export default function Profile() {
         throw new Error('Failed to get public URL for uploaded image')
       }
 
+      console.log('Public URL obtained:', data.publicUrl)
+
       // Update profile with new avatar URL
       const { error: updateError } = await supabase
         .from('profiles')
@@ -145,8 +183,11 @@ export default function Profile() {
         .eq('id', user.id)
 
       if (updateError) {
+        console.error('Profile update error:', updateError)
         throw updateError
       }
+
+      console.log('Profile updated successfully')
 
       // Update local state
       setProfileData((prev) => ({ ...prev, avatar_url: data.publicUrl }))
@@ -194,404 +235,442 @@ export default function Profile() {
     }
   }
 
+  const handleCoachProfileComplete = async () => {
+    // Refresh the profile and check completion status
+    await refreshProfile()
+    await checkCoachProfileCompletion()
+    setShowCoachForm(false)
+    toast.success('Coach profile completed successfully!')
+  }
+
   const requestPasswordView = async () => {
     try {
       // Send password reset email
       const { error } = await supabase.auth.resetPasswordForEmail(profileData.email, {
-        redirectTo: `${window.location.origin}/profile?show_password=true`
+        redirectTo: `${window.location.origin}/profile`
       })
-
-      if (error) throw error
-
-      setPasswordRequested(true)
-      toast.success('Password reveal link sent to your email!')
       
+      if (error) throw error
+      
+      setPasswordRequested(true)
+      toast.success('Password reset link sent to your email!')
     } catch (error: any) {
-      console.error('Error requesting password view:', error)
-      toast.error(error.message || 'Failed to send password reveal email')
+      console.error('Error requesting password reset:', error)
+      toast.error(error.message || 'Failed to send password reset email')
     }
   }
 
-  // Check URL params for password reveal
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search)
-    if (urlParams.get('show_password') === 'true') {
-      setShowPassword(true)
-      // Clean URL
-      window.history.replaceState({}, '', '/profile')
-    }
-  }, [])
-
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
       case 'approved':
-        return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+        return 'text-green-600 bg-green-100'
+      case 'pending':
+        return 'text-yellow-600 bg-yellow-100'
       case 'rejected':
-        return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+        return 'text-red-600 bg-red-100'
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+        return 'text-gray-600 bg-gray-100'
     }
   }
 
   if (!user || !profile) {
     return (
-      <div className="flex items-center justify-center min-h-[70vh]">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
-          <p className="text-gray-600 dark:text-gray-400">Loading profile...</p>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:from-dark-100 dark:via-dark-200 dark:to-dark-100 flex items-center justify-center">
+        <div className="text-center">
+          <UserIcon className="h-24 w-24 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+          <h3 className="text-2xl font-semibold text-gray-600 dark:text-gray-400 mb-2">
+            Please sign in to view your profile
+          </h3>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 p-4">
-      {/* Profile Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="card"
-      >
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-          {/* Avatar Section */}
-          <div className="flex flex-col sm:flex-row items-center gap-6">
-            <div className="relative group">
-              <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-100 dark:bg-dark-300 border-4 border-white dark:border-dark-100 shadow-lg">
-                {profileData.avatar_url ? (
-                  <img
-                    src={profileData.avatar_url}
-                    alt="Profile"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      // Fallback if image fails to load
-                      const target = e.target as HTMLImageElement
-                      target.style.display = 'none'
-                      target.nextElementSibling?.setAttribute('style', 'display: flex')
-                    }}
-                  />
-                ) : null}
-                
-                {/* Fallback icon - always present but hidden if image loads */}
-                <div 
-                  className="w-full h-full flex items-center justify-center"
-                  style={{ display: profileData.avatar_url ? 'none' : 'flex' }}
-                >
-                  <UserCircleIcon className="w-20 h-20 text-gray-400 dark:text-gray-600" />
-                </div>
-              </div>
-              
-              {/* Upload Button Overlay */}
-              <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="flex items-center justify-center w-full h-full rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-                  aria-label="Change profile picture"
-                >
-                  {uploading ? (
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                  ) : (
-                    <div className="flex flex-col items-center text-white">
-                      <CameraIcon className="w-6 h-6 mb-1" />
-                      <span className="text-xs font-medium">Change</span>
-                    </div>
-                  )}
-                </button>
-              </div>
-              
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                onChange={handleAvatarUpload}
-                className="hidden"
-                aria-label="Upload profile picture"
-              />
-              
-              {/* Upload progress indicator */}
-              {uploading && (
-                <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
-                  <div className="bg-primary-600 text-white text-xs px-2 py-1 rounded-full">
-                    Uploading...
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* User Info */}
-            <div className="text-center sm:text-left">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-                {profileData.full_name || 'User'}
-              </h1>
-              <div className="flex flex-col sm:flex-row items-center gap-2 text-gray-600 dark:text-gray-400 mb-3">
-                <span>{profileData.email}</span>
-                {(isAdmin || isGymOwner) && (
-                  <div className="flex items-center gap-2">
-                    <span className="hidden sm:inline">•</span>
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
-                      isAdmin 
-                        ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300'
-                        : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
-                    }`}>
-                      {isAdmin ? (
-                        <>
-                          <ShieldCheckIcon className="w-4 h-4 mr-1" />
-                          Admin
-                        </>
-                      ) : (
-                        <>
-                          <BuildingOfficeIcon className="w-4 h-4 mr-1" />
-                          Gym Owner
-                        </>
-                      )}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <p className="text-gray-500 dark:text-gray-500">
-                Member since {new Date(profile.created_at || '').toLocaleDateString()}
-              </p>
-            </div>
-          </div>
-
-          {/* Edit Button */}
-          <div className="flex justify-center lg:justify-end">
-            {!isEditing ? (
-              <button
-                onClick={() => setIsEditing(true)}
-                className="btn-primary flex items-center space-x-2"
-              >
-                <PencilIcon className="w-4 h-4" />
-                <span>Edit Profile</span>
-              </button>
-            ) : (
-              <div className="flex space-x-2">
-                <button
-                  onClick={handleSaveProfile}
-                  disabled={loading}
-                  className="btn-primary flex items-center space-x-2"
-                >
-                  <CheckIcon className="w-4 h-4" />
-                  <span>{loading ? 'Saving...' : 'Save'}</span>
-                </button>
-                <button
-                  onClick={() => setIsEditing(false)}
-                  className="btn-secondary flex items-center space-x-2"
-                >
-                  <XMarkIcon className="w-4 h-4" />
-                  <span>Cancel</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Profile Information */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="card"
-      >
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Profile Information</h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Full Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <UserIcon className="w-4 h-4 inline mr-2" />
-              Full Name
-            </label>
-            {isEditing ? (
-              <input
-                type="text"
-                value={profileData.full_name}
-                onChange={(e) => setProfileData(prev => ({ ...prev, full_name: e.target.value }))}
-                className="input-field"
-                placeholder="Enter your full name"
-              />
-            ) : (
-              <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-dark-300 px-4 py-3 rounded-xl">
-                {profileData.full_name || 'Not provided'}
-              </p>
-            )}
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <EnvelopeIcon className="w-4 h-4 inline mr-2" />
-              Email Address
-            </label>
-            {isEditing ? (
-              <input
-                type="email"
-                value={profileData.email}
-                onChange={(e) => setProfileData(prev => ({ ...prev, email: e.target.value }))}
-                className="input-field"
-                placeholder="Enter your email"
-              />
-            ) : (
-              <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-dark-300 px-4 py-3 rounded-xl">
-                {profileData.email || 'Not provided'}
-              </p>
-            )}
-          </div>
-
-          {/* Phone Number */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <PhoneIcon className="w-4 h-4 inline mr-2" />
-              Phone Number
-            </label>
-            {isEditing ? (
-              <input
-                type="tel"
-                value={profileData.phone_number}
-                onChange={(e) => setProfileData(prev => ({ ...prev, phone_number: e.target.value }))}
-                className="input-field"
-                placeholder="Enter your phone number"
-              />
-            ) : (
-              <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-dark-300 px-4 py-3 rounded-xl">
-                {profileData.phone_number || 'Not provided'}
-              </p>
-            )}
-          </div>
-
-          {/* Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-              <LockClosedIcon className="w-4 h-4 inline mr-2" />
-              Password
-            </label>
-            <div className="relative">
-              {showPassword ? (
-                <div className="flex items-center space-x-2">
-                  <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-dark-300 px-4 py-3 rounded-xl flex-1">
-                    ••••••••••••
-                  </p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:from-dark-100 dark:via-dark-200 dark:to-dark-100">
+      <div className="container mx-auto px-4 py-8">
+        {/* Coach Profile Completion Alert */}
+        {isCoach && incompleteCoachProfile && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8 p-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg"
+          >
+            <div className="flex items-start">
+              <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 dark:text-yellow-400 mr-3 mt-0.5 flex-shrink-0" />
+              <div className="flex-grow">
+                <h3 className="text-lg font-semibold text-yellow-800 dark:text-yellow-200 mb-2">
+                  Complete Your Coach Profile
+                </h3>
+                <p className="text-yellow-700 dark:text-yellow-300 mb-4">
+                  Your coach registration is incomplete. Please complete your profile to get verified and appear on the trainers page.
+                </p>
+                <div className="flex flex-wrap gap-3">
                   <button
-                    onClick={() => setShowPassword(false)}
-                    className="p-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                    onClick={() => setShowCoachForm(true)}
+                    className="btn-primary flex items-center"
                   >
-                    <EyeSlashIcon className="w-5 h-5" />
+                    <AcademicCapIcon className="h-5 w-5 mr-2" />
+                    Complete Profile
                   </button>
                 </div>
-              ) : (
-                <div className="flex items-center space-x-2">
-                  <p className="text-gray-900 dark:text-white bg-gray-50 dark:bg-dark-300 px-4 py-3 rounded-xl flex-1">
-                    ••••••••••••
-                  </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Coach Registration Form Modal */}
+        {showCoachForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white dark:bg-dark-200 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    Complete Your Coach Profile
+                  </h2>
                   <button
-                    onClick={passwordRequested ? undefined : requestPasswordView}
-                    disabled={passwordRequested}
-                    className={`p-3 ${passwordRequested 
-                      ? 'text-gray-300 dark:text-gray-600 cursor-not-allowed' 
-                      : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                    }`}
-                    title={passwordRequested ? 'Check your email for password reveal link' : 'Click to reveal password (requires email verification)'}
+                    onClick={() => setShowCoachForm(false)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   >
-                    <EyeIcon className="w-5 h-5" />
+                    <XMarkIcon className="h-6 w-6" />
                   </button>
                 </div>
-              )}
+                <CoachRegistrationForm 
+                  onComplete={handleCoachProfileComplete}
+                  initialData={incompleteCoachProfile}
+                />
+              </div>
             </div>
-            {passwordRequested && (
-              <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
-                Password reveal link sent to your email. Check your inbox!
-              </p>
-            )}
           </div>
-        </div>
-      </motion.div>
+        )}
 
-      {/* User's Gyms Section (for gym owners and admins) */}
-      {(isGymOwner || isAdmin) && (
+        {/* Profile Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
           className="card"
         >
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
-              <BuildingOfficeIcon className="w-6 h-6 mr-2" />
-              Your Gyms {userGyms.length > 0 && `(${userGyms.length})`}
-            </h2>
-          </div>
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            {/* Avatar Section */}
+            <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="relative group">
+                <div className="w-32 h-32 rounded-full overflow-hidden bg-gray-100 dark:bg-dark-300 border-4 border-white dark:border-dark-100 shadow-lg">
+                  {profileData.avatar_url ? (
+                    <img
+                      src={profileData.avatar_url}
+                      alt="Profile"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        // Fallback if image fails to load
+                        const target = e.target as HTMLImageElement
+                        target.style.display = 'none'
+                        const fallback = target.nextElementSibling as HTMLElement
+                        if (fallback) fallback.style.display = 'flex'
+                      }}
+                    />
+                  ) : null}
+                  
+                  {/* Fallback icon - always present but hidden if image loads */}
+                  <div 
+                    className="w-full h-full flex items-center justify-center"
+                    style={{ display: profileData.avatar_url ? 'none' : 'flex' }}
+                  >
+                    <UserCircleIcon className="w-20 h-20 text-gray-400 dark:text-gray-600" />
+                  </div>
+                </div>
+                
+                {/* Upload Button Overlay */}
+                <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 cursor-pointer">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center justify-center w-full h-full rounded-full focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                    aria-label="Change profile picture"
+                  >
+                    {uploading ? (
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                    ) : (
+                      <div className="flex flex-col items-center text-white">
+                        <CameraIcon className="w-6 h-6 mb-1" />
+                        <span className="text-xs font-medium">Change</span>
+                      </div>
+                    )}
+                  </button>
+                </div>
+                
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                  onChange={handleAvatarUpload}
+                  className="hidden"
+                  aria-label="Upload profile picture"
+                />
+                
+                {/* Upload progress indicator */}
+                {uploading && (
+                  <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2">
+                    <div className="bg-primary-600 text-white text-xs px-2 py-1 rounded-full">
+                      Uploading...
+                    </div>
+                  </div>
+                )}
+              </div>
 
-          {gymsLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
-            </div>
-          ) : userGyms.length === 0 ? (
-            <div className="text-center py-12">
-              <BuildingOfficeIcon className="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600 mb-4" />
-              <p className="text-gray-500 dark:text-gray-400 text-lg mb-4">
-                You haven't uploaded any gyms yet
-              </p>
-              <a href="/add-gym" className="btn-primary">
-                Add Your First Gym
-              </a>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {userGyms.map((gym) => (
-                <motion.div
-                  key={gym.id}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="bg-gray-50 dark:bg-dark-300 rounded-xl p-6 hover-card"
-                >
-                  {/* Gym Image */}
-                  {gym.images && gym.images.length > 0 && (
-                    <div className="aspect-video rounded-lg overflow-hidden mb-4">
-                      <GymImageDisplay 
-                                  images={gym.images}
-                                  className="w-full h-full object-cover" gymName={''}                      />
+              {/* User Info */}
+              <div className="text-center sm:text-left">
+                <div className="flex items-center gap-3 mb-2">
+                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+                    {profileData.full_name || 'User'}
+                  </h1>
+                  {profile.role === 'admin' && (
+                    <div className="flex items-center gap-1 px-2 py-1 bg-red-100 text-red-800 rounded-full text-sm">
+                      <ShieldCheckIcon className="w-4 h-4" />
+                      Admin
                     </div>
                   )}
+                  {profile.role === 'gym_owner' && (
+                    <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                      <BuildingOfficeIcon className="w-4 h-4" />
+                      Gym Owner
+                    </div>
+                  )}
+                  {profile.role === 'coach' && (
+                    <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded-full text-sm">
+                      <AcademicCapIcon className="w-4 h-4" />
+                      Coach
+                    </div>
+                  )}
+                </div>
+                <p className="text-gray-600 dark:text-gray-400 mb-1">{profileData.email}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-500">
+                  Member since {new Date(profile.created_at || '').toLocaleDateString()}
+                </p>
+              </div>
+            </div>
 
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
-                      {gym.name}
-                    </h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(gym.status)}`}>
-                      {gym.status}
-                    </span>
-                  </div>
+            {/* Action Buttons */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => setIsEditing(!isEditing)}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <PencilIcon className="w-4 h-4" />
+                {isEditing ? 'Cancel' : 'Edit Profile'}
+              </button>
+            </div>
+          </div>
+        </motion.div>
 
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-3 line-clamp-2">
-                    {gym.description}
-                  </p>
+        {/* Profile Form */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="card"
+        >
+          <h2 className="text-xl font-semibold mb-6 text-gray-900 dark:text-white">
+            Personal Information
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Full Name */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Full Name
+              </label>
+              <div className="relative">
+                <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={profileData.full_name}
+                  onChange={(e) => setProfileData({ ...profileData, full_name: e.target.value })}
+                  disabled={!isEditing}
+                  className="input-field pl-10"
+                  placeholder="Enter your full name"
+                />
+              </div>
+            </div>
 
-                  <div className="text-sm text-gray-500 dark:text-gray-500 mb-4">
-                    📍 {[gym.city, gym.country].filter(Boolean).join(', ')}
-                  </div>
+            {/* Email */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Email Address
+              </label>
+              <div className="relative">
+                <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="email"
+                  value={profileData.email}
+                  onChange={(e) => setProfileData({ ...profileData, email: e.target.value })}
+                  disabled={!isEditing}
+                  className="input-field pl-10"
+                  placeholder="Enter your email"
+                />
+              </div>
+            </div>
 
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400 dark:text-gray-600">
-                      Added {new Date(gym.created_at).toLocaleDateString()}
-                    </span>
-                    {gym.status === 'approved' && (
-                      <a
-                        href={`/gyms/${gym.id}`}
-                        className="text-primary-600 dark:text-primary-400 hover:text-primary-500 text-sm font-medium"
-                      >
-                        View →
-                      </a>
+            {/* Phone Number */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Phone Number
+              </label>
+              <div className="relative">
+                <PhoneIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="tel"
+                  value={profileData.phone_number}
+                  onChange={(e) => setProfileData({ ...profileData, phone_number: e.target.value })}
+                  disabled={!isEditing}
+                  className="input-field pl-10"
+                  placeholder="Enter your phone number"
+                />
+              </div>
+            </div>
+
+            {/* Password Section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <LockClosedIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value="••••••••"
+                  disabled
+                  className="input-field pl-10 pr-20"
+                />
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex gap-2">
+                  <button
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  >
+                    {showPassword ? (
+                      <EyeSlashIcon className="w-5 h-5" />
+                    ) : (
+                      <EyeIcon className="w-5 h-5" />
                     )}
-                  </div>
-                </motion.div>
-              ))}
+                  </button>
+                  <button
+                    onClick={requestPasswordView}
+                    disabled={passwordRequested}
+                    className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+                  >
+                    {passwordRequested ? 'Sent' : 'Reset'}
+                  </button>
+                </div>
+              </div>
+              {passwordRequested && (
+                <p className="text-sm text-green-600 mt-1">
+                  Password reset link sent to your email!
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Save/Cancel Buttons */}
+          {isEditing && (
+            <div className="flex gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <button
+                onClick={handleSaveProfile}
+                disabled={loading}
+                className="btn-primary flex items-center gap-2"
+              >
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <CheckIcon className="w-4 h-4" />
+                )}
+                Save Changes
+              </button>
+              <button
+                onClick={() => {
+                  setIsEditing(false)
+                  // Reset form data
+                  setProfileData({
+                    full_name: profile.full_name || '',
+                    email: profile.email || '',
+                    phone_number: (profile as any).phone_number || '',
+                    avatar_url: profile.avatar_url
+                  })
+                }}
+                className="btn-secondary flex items-center gap-2"
+              >
+                <XMarkIcon className="w-4 h-4" />
+                Cancel
+              </button>
             </div>
           )}
         </motion.div>
-      )}
+
+        {/* Gym Owner Section */}
+        {(isAdmin || isGymOwner) && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="card"
+          >
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <BuildingOfficeIcon className="w-6 h-6" />
+                Your Gyms
+              </h2>
+            </div>
+
+            {gymsLoading ? (
+              <div className="text-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto"></div>
+                <p className="text-gray-600 dark:text-gray-400 mt-2">Loading your gyms...</p>
+              </div>
+            ) : userGyms.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {userGyms.map((gym) => (
+                  <div
+                    key={gym.id}
+                    className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                        {gym.name}
+                      </h3>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(gym.status)}`}>
+                        {gym.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                      {gym.description}
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-500">
+                      {gym.city}, {gym.country}
+                    </p>
+                    {gym.images && gym.images.length > 0 && (
+                      <div className="mt-3">
+                        <GymImageDisplay 
+                          images={gym.images} 
+                          gymName={gym.name}
+                          maxImages={3}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <BuildingOfficeIcon className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                  No gyms registered yet
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Start by adding your first gym to get approved and listed.
+                </p>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </div>
     </div>
   )
 } 

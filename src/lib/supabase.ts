@@ -87,6 +87,93 @@ export interface Profile {
   updated_at?: string
 }
 
+export interface Coach {
+  id: string
+  bio?: string
+  specialties: string[]
+  experience_years: number
+  certifications: string[]
+  platform_fee_percentage: number
+  is_verified: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface Tutorial {
+  id: string
+  coach_id: string
+  title: string
+  description?: string
+  video_url: string
+  thumbnail_url?: string
+  category: string
+  difficulty_level: 'beginner' | 'intermediate' | 'advanced'
+  duration_minutes?: number
+  price: number
+  coach_earnings: number
+  platform_fee: number
+  tags: string[]
+  is_published: boolean
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  updated_at: string
+  coach?: Profile
+}
+
+export interface TutorialPackage {
+  id: string
+  coach_id: string
+  name: string
+  description?: string
+  package_type: 'bundle' | 'monthly_subscription'
+  price: number
+  coach_earnings: number
+  platform_fee: number
+  duration_days?: number
+  tutorial_ids: string[]
+  is_active: boolean
+  created_at: string
+  updated_at: string
+  tutorials?: Tutorial[]
+  coach?: Profile
+}
+
+export interface FeedbackRequest {
+  id: string
+  user_id: string
+  coach_id: string
+  title: string
+  description: string
+  workout_video_urls: string[]
+  price: number
+  coach_earnings: number
+  platform_fee: number
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
+  payment_status: 'pending' | 'paid' | 'refunded'
+  feedback_text?: string
+  feedback_video_url?: string
+  submitted_at: string
+  completed_at?: string
+  created_at: string
+  updated_at: string
+  user?: Profile
+  coach?: Profile
+}
+
+export interface Purchase {
+  id: string
+  user_id: string
+  coach_id: string
+  item_type: 'tutorial' | 'package' | 'feedback'
+  item_id: string
+  amount: number
+  platform_fee: number
+  coach_earnings: number
+  payment_status: 'pending' | 'completed' | 'failed' | 'refunded'
+  expires_at?: string
+  created_at: string
+}
+
 // Category-related functions
 export async function getCategories() {
   try {
@@ -371,7 +458,7 @@ export async function searchGyms(query: string) {
       return (basicData as Gym[]) || []
     }
 
-    // Transform the data to flatten categories
+    // Transform the data to flatten categories if they exist
     const transformedData = data?.map(gym => ({
       ...gym,
       categories: gym.categories?.map((gc: any) => gc.categories).filter(Boolean) || []
@@ -388,7 +475,7 @@ export async function searchTrainers(query: string) {
   const { data, error } = await supabase
     .from('trainers')
     .select('*')
-    .textSearch('name', query)
+    .or(`name.ilike.%${query}%,specialty.ilike.%${query}%,location.ilike.%${query}%`)
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -405,8 +492,8 @@ export async function submitContactForm(formData: {
   subject: string
   message: string
 }) {
-  const { error } = await supabase
-    .from('contact_messages')
+  const { data, error } = await supabase
+    .from('contact_submissions')
     .insert([formData])
 
   if (error) {
@@ -414,10 +501,9 @@ export async function submitContactForm(formData: {
     throw error
   }
 
-  return true
+  return data
 }
 
-// Auth utility functions
 export async function signUp(email: string, password: string, fullName: string) {
   const { data, error } = await supabase.auth.signUp({
     email,
@@ -436,7 +522,7 @@ export async function signUp(email: string, password: string, fullName: string) 
 export async function signIn(email: string, password: string) {
   const { data, error } = await supabase.auth.signInWithPassword({
     email,
-    password
+    password,
   })
 
   if (error) throw error
@@ -465,10 +551,9 @@ export async function getUserProfile(userId: string) {
     return null
   }
 
-  return data as Profile
+  return data
 }
 
-// Admin functions for gym management
 export async function getPendingGyms() {
   try {
     const { data, error } = await supabase
@@ -485,7 +570,7 @@ export async function getPendingGyms() {
 
     if (error) {
       console.error('Error fetching pending gyms:', error)
-      // Fallback to basic gym data
+      // Fallback to basic gym data if categories tables don't exist
       const { data: basicData, error: basicError } = await supabase
         .from('gyms')
         .select('*')
@@ -500,7 +585,7 @@ export async function getPendingGyms() {
       return (basicData as Gym[]) || []
     }
 
-    // Transform the data to flatten categories
+    // Transform the data to flatten categories if they exist
     const transformedData = data?.map(gym => ({
       ...gym,
       categories: gym.categories?.map((gc: any) => gc.categories).filter(Boolean) || []
@@ -528,7 +613,7 @@ export async function getAllGyms() {
 
     if (error) {
       console.error('Error fetching all gyms:', error)
-      // Fallback to basic gym data
+      // Fallback to basic gym data if categories tables don't exist
       const { data: basicData, error: basicError } = await supabase
         .from('gyms')
         .select('*')
@@ -542,7 +627,7 @@ export async function getAllGyms() {
       return (basicData as Gym[]) || []
     }
 
-    // Transform the data to flatten categories
+    // Transform the data to flatten categories if they exist
     const transformedData = data?.map(gym => ({
       ...gym,
       categories: gym.categories?.map((gc: any) => gc.categories).filter(Boolean) || []
@@ -600,7 +685,7 @@ export async function getGymsByStatus(status: 'pending' | 'approved' | 'rejected
 
     if (error) {
       console.error('Error fetching gyms by status:', error)
-      // Fallback to basic gym data
+      // Fallback to basic gym data if categories tables don't exist
       const { data: basicData, error: basicError } = await supabase
         .from('gyms')
         .select('*')
@@ -615,7 +700,7 @@ export async function getGymsByStatus(status: 'pending' | 'approved' | 'rejected
       return (basicData as Gym[]) || []
     }
 
-    // Transform the data to flatten categories
+    // Transform the data to flatten categories if they exist
     const transformedData = data?.map(gym => ({
       ...gym,
       categories: gym.categories?.map((gc: any) => gc.categories).filter(Boolean) || []
@@ -633,7 +718,6 @@ export function getImageUrl(path: string): string {
   return data.publicUrl
 }
 
-// Updated function to create a gym (for gym owners) with optional categories
 export async function createGymByOwner(gymData: {
   name: string
   description: string
@@ -671,7 +755,6 @@ export async function createGymByOwner(gymData: {
   return data as Gym
 }
 
-// Function to get gyms by owner
 export async function getGymsByOwner(ownerId: string) {
   try {
     const { data, error } = await supabase
@@ -688,7 +771,7 @@ export async function getGymsByOwner(ownerId: string) {
 
     if (error) {
       console.error('Error fetching gyms by owner:', error)
-      // Fallback to basic gym data
+      // Fallback to basic gym data if categories tables don't exist
       const { data: basicData, error: basicError } = await supabase
         .from('gyms')
         .select('*')
@@ -703,7 +786,7 @@ export async function getGymsByOwner(ownerId: string) {
       return (basicData as Gym[]) || []
     }
 
-    // Transform the data to flatten categories
+    // Transform the data to flatten categories if they exist
     const transformedData = data?.map(gym => ({
       ...gym,
       categories: gym.categories?.map((gc: any) => gc.categories).filter(Boolean) || []
@@ -716,113 +799,55 @@ export async function getGymsByOwner(ownerId: string) {
   }
 }
 
-// Add these interfaces after the existing ones
-
-export interface Coach {
-  id: string
-  bio?: string
-  specialties: string[]
-  experience_years: number
-  certifications: string[]
-  platform_fee_percentage: number
-  is_verified: boolean
-  created_at: string
-  updated_at: string
-}
-
-export interface Tutorial {
-  id: string
-  coach_id: string
-  title: string
-  description?: string
-  video_url: string
-  thumbnail_url?: string
-  category: string
-  difficulty_level: 'beginner' | 'intermediate' | 'advanced'
-  duration_minutes?: number
-  price: number
-  coach_earnings: number
-  platform_fee: number
-  tags: string[]
-  is_published: boolean
-  status: 'pending' | 'approved' | 'rejected'
-  created_at: string
-  updated_at: string
-  coach?: Profile
-}
-
-export interface TutorialPackage {
-  id: string
-  coach_id: string
-  name: string
-  description?: string
-  package_type: 'bundle' | 'monthly_subscription'
-  price: number
-  coach_earnings: number
-  platform_fee: number
-  duration_days?: number
-  tutorial_ids: string[]
-  is_active: boolean
-  created_at: string
-  updated_at: string
-  tutorials?: Tutorial[]
-  coach?: Profile
-}
-
-export interface FeedbackRequest {
-  id: string
-  user_id: string
-  coach_id: string
-  title: string
-  description: string
-  workout_video_urls: string[]
-  price: number
-  coach_earnings: number
-  platform_fee: number
-  status: 'pending' | 'in_progress' | 'completed' | 'cancelled'
-  payment_status: 'pending' | 'paid' | 'refunded'
-  feedback_text?: string
-  feedback_video_url?: string
-  submitted_at: string
-  completed_at?: string
-  created_at: string
-  updated_at: string
-  user?: Profile
-  coach?: Profile
-}
-
-export interface Purchase {
-  id: string
-  user_id: string
-  coach_id: string
-  item_type: 'tutorial' | 'package' | 'feedback'
-  item_id: string
-  amount: number
-  platform_fee: number
-  coach_earnings: number
-  payment_status: 'pending' | 'completed' | 'failed' | 'refunded'
-  expires_at?: string
-  created_at: string
-}
-
 // Coach-related functions
 export async function getCoaches() {
   try {
-    const { data, error } = await supabase
+    // First, get all profiles with role 'coach'
+    const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select(`
-        *,
-        coaches(*)
-      `)
+      .select('*')
       .eq('role', 'coach')
       .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error('Error fetching coaches:', error)
+    if (profilesError) {
+      console.error('Error fetching coach profiles:', profilesError)
       return []
     }
 
-    return data || []
+    if (!profiles || profiles.length === 0) {
+      console.log('No coach profiles found')
+      return []
+    }
+
+    // Get coach IDs
+    const coachIds = profiles.map(profile => profile.id)
+
+    // Then, get coach-specific data
+    const { data: coaches, error: coachesError } = await supabase
+      .from('coaches')
+      .select('*')
+      .in('id', coachIds)
+
+    if (coachesError) {
+      console.error('Error fetching coach data:', coachesError)
+      // Return profiles without coach data if coaches table query fails
+      return profiles.map(profile => ({
+        ...profile,
+        coaches: null
+      }))
+    }
+
+    // Combine the data
+    const combinedData = profiles.map(profile => {
+      const coachData = coaches?.find(coach => coach.id === profile.id)
+      return {
+        ...profile,
+        coaches: coachData || null
+      }
+    })
+
+    console.log(`Found ${combinedData.length} coaches`)
+    return combinedData
   } catch (error) {
     console.error('Error in getCoaches:', error)
     return []
@@ -1044,7 +1069,6 @@ export async function getAllTutorialsByCoach(coachId: string) {
   }
 }
 
-// Public function for approved tutorials only (equivalent to getGyms)
 export async function getTutorials() {
   try {
     const { data, error } = await supabase
@@ -1058,7 +1082,7 @@ export async function getTutorials() {
       .order('created_at', { ascending: false })
 
     if (error) {
-      console.error('Error fetching approved tutorials:', error)
+      console.error('Error fetching published tutorials:', error)
       return []
     }
 
@@ -1069,37 +1093,294 @@ export async function getTutorials() {
   }
 }
 
-// Enhanced debug function
 export async function debugTutorials() {
   try {
-    const { data, error } = await supabase
+    const { data: allTutorials, error } = await supabase
       .from('tutorials')
-      .select(`
-        id,
-        title,
-        status,
-        coach_id,
-        is_published,
-        created_at,
-        coach:profiles!tutorials_coach_id_fkey(full_name, email, role)
-      `)
-      .order('created_at', { ascending: false });
+      .select('*')
 
+    console.log('All tutorials in database:', allTutorials)
+    
     if (error) {
-      console.error('Error fetching debug tutorials:', error);
-      return [];
+      console.error('Error in debugTutorials:', error)
+      return []
     }
 
-    console.log('All tutorials in database:', data);
-    console.log('Tutorial breakdown:');
-    console.log('- Pending:', data?.filter(t => t.status === 'pending').length || 0);
-    console.log('- Approved:', data?.filter(t => t.status === 'approved').length || 0);
-    console.log('- Rejected:', data?.filter(t => t.status === 'rejected').length || 0);
-    console.log('- Published:', data?.filter(t => t.is_published).length || 0);
-    
-    return data || [];
+    return allTutorials || []
   } catch (error) {
-    console.error('Error in debugTutorials:', error);
-    return [];
+    console.error('Error in debugTutorials:', error)
+    return []
+  }
+}
+
+// Enhanced coach registration function
+export async function registerCoachWithProfile(
+  userData: {
+    email: string
+    password: string
+    fullName: string
+  },
+  coachData: {
+    bio: string
+    specialties: string[]
+    experience_years: number
+    certifications: string[]
+  }
+) {
+  try {
+    // Step 1: Create user account
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: userData.email,
+      password: userData.password,
+      options: {
+        data: {
+          full_name: userData.fullName,
+          is_coach: true
+        }
+      }
+    })
+
+    if (authError) throw authError
+    if (!authData.user) throw new Error('Failed to create user account')
+
+    // Step 2: Create coach profile (the trigger should handle profile creation)
+    const { data: coach, error: coachError } = await supabase
+      .from('coaches')
+      .insert([{
+        id: authData.user.id,
+        bio: coachData.bio,
+        specialties: coachData.specialties,
+        experience_years: coachData.experience_years,
+        certifications: coachData.certifications,
+        platform_fee_percentage: 5.0,
+        is_verified: false
+      }])
+      .select()
+      .single()
+
+    if (coachError) {
+      console.error('Error creating coach profile:', coachError)
+      throw new Error('Failed to create coach profile')
+    }
+
+    return {
+      user: authData.user,
+      coach: coach,
+      session: authData.session
+    }
+  } catch (error) {
+    console.error('Error in registerCoachWithProfile:', error)
+    throw error
+  }
+}
+
+// Update the getCoachProfile function to handle the correct data structure
+export async function getCoachProfile(userId: string) {
+  try {
+    console.log('getCoachProfile called with userId:', userId)
+    
+    // First, get the profile data
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .eq('role', 'coach')
+      .single()
+
+    if (profileError || !profile) {
+      console.error('Error fetching coach profile:', profileError)
+      return null
+    }
+
+    console.log('Profile found:', profile)
+
+    // Then get the coach-specific data
+    const { data: coachData, error: coachError } = await supabase
+      .from('coaches')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    if (coachError || !coachData) {
+      console.error('Error fetching coach data:', coachError)
+      // Return profile data even if coach data is missing (for incomplete profiles)
+      return {
+        id: profile.id,
+        bio: '',
+        specialties: [],
+        experience_years: 0,
+        certifications: [],
+        platform_fee_percentage: 5.0,
+        is_verified: false,
+        created_at: profile.created_at || new Date().toISOString(),
+        updated_at: profile.updated_at || new Date().toISOString(),
+        profile: profile
+      }
+    }
+
+    console.log('Coach data found:', coachData)
+
+    // Combine the data
+    const combinedData = {
+      ...coachData,
+      profile: profile
+    }
+
+    console.log('Combined coach profile data:', combinedData)
+    return combinedData
+  } catch (error) {
+    console.error('Error in getCoachProfile:', error)
+    return null
+  }
+}
+
+// Update coach profile
+export async function updateCoachProfile(
+  userId: string, 
+  updateData: Partial<Omit<Coach, 'id' | 'created_at' | 'updated_at'>>
+) {
+  try {
+    const { data, error } = await supabase
+      .from('coaches')
+      .update(updateData)
+      .eq('id', userId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating coach profile:', error)
+      throw error
+    }
+
+    return data
+  } catch (error) {
+    console.error('Error in updateCoachProfile:', error)
+    throw error
+  }
+}
+
+// Get verified coaches for public display
+export async function getVerifiedCoaches() {
+  try {
+    const { data: profiles, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('role', 'coach')
+      .order('created_at', { ascending: false })
+
+    if (profilesError) {
+      console.error('Error fetching coach profiles:', profilesError)
+      return []
+    }
+
+    if (!profiles || profiles.length === 0) {
+      return []
+    }
+
+    const coachIds = profiles.map(profile => profile.id)
+
+    const { data: coaches, error: coachesError } = await supabase
+      .from('coaches')
+      .select('*')
+      .in('id', coachIds)
+      .eq('is_verified', true) // Only get verified coaches
+
+    if (coachesError) {
+      console.error('Error fetching verified coaches:', coachesError)
+      return profiles.map(profile => ({
+        ...profile,
+        coaches: null
+      }))
+    }
+
+    const combinedData = profiles
+      .map(profile => {
+        const coachData = coaches?.find(coach => coach.id === profile.id)
+        return coachData ? {
+          ...profile,
+          coaches: coachData
+        } : null
+      })
+      .filter(Boolean) // Remove null entries (unverified coaches)
+
+    return combinedData
+  } catch (error) {
+    console.error('Error in getVerifiedCoaches:', error)
+    return []
+  }
+}
+
+// Admin function to verify/unverify coaches
+export async function updateCoachVerificationStatus(coachId: string, isVerified: boolean) {
+  try {
+    const { data, error } = await supabase
+      .from('coaches')
+      .update({ is_verified: isVerified })
+      .eq('id', coachId)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error updating coach verification:', error)
+      throw error
+    }
+
+    return data
+  } catch (error) {
+    console.error('Error in updateCoachVerificationStatus:', error)
+    throw error
+  }
+}
+
+// Check if coach profile is complete
+export async function isCoachProfileComplete(userId: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from('coaches')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    if (error || !data) {
+      return false
+    }
+
+    // Check if all required fields are filled
+    const requiredFields = [
+      data.bio && data.bio.trim().length > 0,
+      data.specialties && data.specialties.length > 0,
+      data.experience_years !== null && data.experience_years > 0,
+      data.certifications && data.certifications.length > 0
+    ]
+
+    return requiredFields.every(field => field)
+  } catch (error) {
+    console.error('Error checking coach profile completion:', error)
+    return false
+  }
+}
+
+// Get incomplete coach profile if exists
+export async function getIncompleteCoachProfile(userId: string) {
+  try {
+    const { data, error } = await supabase
+      .from('coaches')
+      .select('*')
+      .eq('id', userId)
+      .single()
+
+    if (error || !data) {
+      return null
+    }
+
+    const isComplete = await isCoachProfileComplete(userId)
+    if (isComplete) {
+      return null
+    }
+
+    return data
+  } catch (error) {
+    console.error('Error fetching incomplete coach profile:', error)
+    return null
   }
 } 

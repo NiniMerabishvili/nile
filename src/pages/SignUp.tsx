@@ -36,7 +36,14 @@ export default function SignUp() {
 
     try {
       await signUp(email, password, fullName, isGymOwner, isCoach);
-      navigate('/signin');
+      
+      // If user is registering as a coach, redirect to coach registration flow
+      if (isCoach) {
+        navigate('/coach/registration');
+      } else {
+        // For other user types, navigate to signin
+        navigate('/signin');
+      }
     } catch (error: any) {
       setError(error.message || 'Failed to sign up.');
     }

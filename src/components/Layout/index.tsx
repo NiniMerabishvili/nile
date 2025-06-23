@@ -11,6 +11,7 @@ import {
   UserCircleIcon,
   BuildingOfficeIcon,
 } from '@heroicons/react/24/outline'
+import CoachCompletionBanner from '../CoachCompletionBanner'
 
 interface LayoutProps {
   children: ReactNode
@@ -57,7 +58,7 @@ export default function Layout({ children }: LayoutProps) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-dark-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:from-dark-100 dark:via-dark-200 dark:to-dark-100">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white dark:bg-dark-100 shadow-sm">
         <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
@@ -243,6 +244,9 @@ export default function Layout({ children }: LayoutProps) {
           )}
         </AnimatePresence>
       </header>
+
+      {/* Coach Completion Banner */}
+      <CoachCompletionBanner />
 
       {/* Main Content */}
       <motion.main

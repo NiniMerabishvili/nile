@@ -10,8 +10,8 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../context/AuthContext';
 import { 
-  getTutorials, 
   createTutorial,
+  getAllTutorials,
   type Tutorial 
 } from '../lib/supabase';
 import toast from 'react-hot-toast';
@@ -44,9 +44,9 @@ export default function CoachTutorials() {
   const loadTutorials = async () => {
     try {
       setLoading(true);
-      const allTutorials = await getTutorials();
-      // Filter to show only current coach's tutorials
-      setTutorials(allTutorials.filter(t => t.coach_id === user?.id));
+      const allTutorials = await getAllTutorials();
+      // Filter to show only current coach's tutorials 
+      setTutorials(allTutorials.filter((tutorial: Tutorial) => tutorial.coach_id === user?.id));
     } catch (error) {
       console.error('Error loading tutorials:', error);
       toast.error('Failed to load tutorials');
@@ -146,7 +146,7 @@ export default function CoachTutorials() {
             <div>
               <p className="text-sm text-gray-600 dark:text-gray-400">Total Earnings</p>
               <p className="text-2xl font-bold">
-                ${tutorials.reduce((sum, t) => sum + t.coach_earnings, 0).toFixed(2)}
+                ${tutorials.reduce((sum, t) => sum + (t.coach_earnings || 0), 0).toFixed(2)}
               </p>
             </div>
           </div>
@@ -205,13 +205,26 @@ export default function CoachTutorials() {
               
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-lg">{tutorial.title}</h3>
-                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                  tutorial.is_published 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                    : 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                }`}>
-                  {tutorial.is_published ? 'Published' : 'Draft'}
-                </span>
+                <div className="flex space-x-2">
+                  {tutorial.status && (
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      tutorial.status === 'approved' 
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+                        : tutorial.status === 'pending'
+                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
+                    }`}>
+                      {tutorial.status}
+                    </span>
+                  )}
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    tutorial.is_published 
+                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
+                  }`}>
+                    {tutorial.is_published ? 'Published' : 'Draft'}
+                  </span>
+                </div>
               </div>
 
               <p className="text-gray-600 dark:text-gray-400 mb-4 line-clamp-2">
@@ -233,25 +246,42 @@ export default function CoachTutorials() {
                     <span className="text-sm font-medium">{tutorial.duration_minutes} min</span>
                   </div>
                 )}
+                {tutorial.tags && tutorial.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {tutorial.tags.slice(0, 3).map((tag, index) => (
+                      <span
+                        key={index}
+                        className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                    {tutorial.tags.length > 3 && (
+                      <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
+                        +{tutorial.tags.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-gray-200 dark:border-gray-700 pt-4 space-y-2">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-500">Price:</span>
                   <span className="text-primary-600 font-semibold">
-                    ${tutorial.price.toFixed(2)}
+                    ${tutorial.price?.toFixed(2) || '0.00'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-500">Your Earnings:</span>
                   <span className="text-green-600 font-semibold">
-                    ${tutorial.coach_earnings.toFixed(2)}
+                    ${tutorial.coach_earnings?.toFixed(2) || '0.00'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-gray-500">Platform Fee:</span>
                   <span className="text-red-600 font-medium">
-                    ${tutorial.platform_fee.toFixed(2)}
+                    ${tutorial.platform_fee?.toFixed(2) || '0.00'}
                   </span>
                 </div>
               </div>

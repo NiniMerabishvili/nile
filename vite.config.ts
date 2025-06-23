@@ -7,7 +7,11 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './src')
+      '@': path.resolve(__dirname, './src'),
+      '@heroicons/react': '@heroicons/react'
     }
+  },
+  optimizeDeps: {
+    include: ['@heroicons/react/24/outline', '@heroicons/react/24/solid']
   }
 })

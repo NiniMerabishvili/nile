@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { supabase, type Profile } from '../lib/supabase'
+import { supabase, type Profile, createCoachProfile } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 interface AuthContextType {
@@ -10,7 +10,7 @@ interface AuthContextType {
   isAdmin: boolean
   isGymOwner: boolean
   isCoach: boolean
-  signUp: (email: string, password: string, fullName: string, isGymOwner?: boolean, isCoach?: boolean) => Promise<void>
+  signUp: (email: string, password: string, fullName: string, isGymOwner?: boolean, isCoach?: boolean) => Promise<{ user: User | null }>
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
@@ -158,6 +158,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('Profile created successfully:', data)
       setProfile(data)
       
+      // Do NOT automatically create coach profile - they need to complete step 2
+      if (isCoachFromMetadata) {
+        toast.success('Account created! Please complete your coach profile to start offering services.')
+      }
+      
     } catch (error) {
       console.error('Failed to create profile:', error)
     } finally {
@@ -197,7 +202,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await createProfile(data.user, isGymOwner, isCoach)
         setUser(data.user)
         toast.success('Account created and signed in successfully!')
+        return { user: data.user }
       }
+      
+      return { user: null }
     } catch (error: any) {
       console.error('Signup error:', error)
       toast.error(error.message || 'Failed to create account')
