@@ -1,15 +1,11 @@
-import { useState, useEffect, lazy, Suspense } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import type { Variants } from 'framer-motion'
 import * as OutlineIcons from '@heroicons/react/24/outline'
-import * as SolidIcons from '@heroicons/react/24/solid'
 import { getCoaches, getTrainers, type Profile, type Trainer } from '../lib/supabase'
 import LoadingSpinner from '../components/LoadingSpinner'
 
-// Dynamically import the icons
-const OutlineIconsDynamic = lazy(() => import('@heroicons/react/24/outline'))
-const SolidIconsDynamic = lazy(() => import('@heroicons/react/24/solid'))
 
 // Enhanced interface for coaches with profile data
 interface CoachWithProfile {
@@ -369,8 +365,8 @@ export default function Trainers() {
                 onChange={(e) => setSpecialtyFilter(e.target.value)}
               >
                 <option value="">All Specialties</option>
-                {allSpecialties.map(specialty => (
-                  <option key={specialty} value={specialty}>{specialty}</option>
+                {allSpecialties.map((specialty, _idx) => (
+                  <option key={_idx} value={specialty}>{specialty}</option>
                 ))}
               </select>
             </div>
@@ -448,7 +444,7 @@ export default function Trainers() {
             animate="visible"
             className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
           >
-            {filteredInstructors.map((instructor, index) => {
+            {filteredInstructors.map((instructor) => {
               const name = getName(instructor)
               const bio = getBio(instructor)
               const specialties = getSpecialties(instructor)
@@ -526,10 +522,10 @@ export default function Trainers() {
                     {specialties && specialties.length > 0 && (
                       <div className="mb-4">
                         <div className="flex flex-wrap gap-2">
-                          {specialties.slice(0, 3).map((specialty, idx) => (
+                          {specialties.slice(0, 3).map((specialty, _idx) => (
                             <span
-                              key={idx}
-                              className="inline-block bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 text-xs px-2 py-1 rounded-full"
+                              key={_idx}
+                              className="px-3 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-full"
                             >
                               {specialty}
                             </span>

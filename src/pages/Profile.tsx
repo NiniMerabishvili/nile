@@ -335,9 +335,11 @@ export default function Profile() {
                     <XMarkIcon className="h-6 w-6" />
                   </button>
                 </div>
-                <CoachRegistrationForm 
-                  onComplete={handleCoachProfileComplete}
-                  initialData={incompleteCoachProfile}
+                <CoachRegistrationForm
+                  onSuccess={handleCoachProfileComplete}
+                  onBack={() => setShowCoachForm(false)}
+                  loading={loading}
+                  setLoading={setLoading}
                 />
               </div>
             </div>
@@ -650,7 +652,7 @@ export default function Profile() {
                         <GymImageDisplay 
                           images={gym.images} 
                           gymName={gym.name}
-                          maxImages={3}
+                          showGallery={true}
                         />
                       </div>
                     )}

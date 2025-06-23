@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { supabase, type Profile, createCoachProfile } from '../lib/supabase'
+import { supabase, type Profile } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 interface AuthContextType {
