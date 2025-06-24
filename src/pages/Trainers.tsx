@@ -20,7 +20,7 @@ interface CoachWithProfile {
   updated_at: string
   gym_id?: string | null
   name?: string // For gym coaches
-  profile?: Profile
+  profile?: Profile | null
   gym?: {
     id: string
     name: string
@@ -67,7 +67,7 @@ export default function Trainers() {
         console.log('📊 Raw coaches data with gym info:', coachesData)
         console.log('📊 Raw trainers data:', trainersData)
 
-        // Transform coaches data
+        // Transform coaches data with better type handling
         const coachesWithType: CoachWithProfile[] = (coachesData || []).map(coach => ({
           id: coach.id,
           bio: coach.bio,

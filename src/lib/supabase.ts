@@ -176,6 +176,38 @@ export interface Purchase {
   created_at: string
 }
 
+// Update the CoachWithGymInfo interface to handle the role type properly
+export interface CoachWithGymInfo {
+  id: string
+  bio?: string
+  specialties: string[]
+  experience_years: number
+  certifications: string[]
+  platform_fee_percentage: number
+  is_verified: boolean
+  created_at: string
+  updated_at: string
+  gym_id?: string | null
+  name?: string
+  profile?: {
+    id: string
+    username?: string
+    full_name?: string
+    email?: string
+    avatar_url?: string
+    role: 'user' | 'admin' | 'gym_owner' | 'coach'  // Use the proper union type
+  } | null
+  gym?: {
+    id: string
+    name: string
+    city: string
+    country: string
+    address: string
+  } | null
+  display_name: string
+  coach_type: 'user_coach' | 'gym_coach'
+}
+
 // Category-related functions
 export async function getCategories() {
   try {
@@ -1555,7 +1587,7 @@ export async function createGymCoach(coachData: {
 }
 
 // Enhanced function to get all coaches including gym coaches with gym info
-export async function getAllCoachesWithGymInfo() {
+export async function getAllCoachesWithGymInfo(): Promise<CoachWithGymInfo[]> {
   try {
     console.log('🔍 Fetching all coaches with gym info...')
     
@@ -1597,15 +1629,15 @@ export async function getAllCoachesWithGymInfo() {
       console.log('Falling back to simple query...')
       if (simpleCoaches && simpleCoaches.length > 0) {
         return simpleCoaches.map(coach => ({
-          id: coach.id,
+          id: coach.id || '',
           bio: coach.bio,
           specialties: coach.specialties || [],
           experience_years: coach.experience_years || 0,
           certifications: coach.certifications || [],
           platform_fee_percentage: coach.platform_fee_percentage || 5.0,
           is_verified: coach.is_verified || false,
-          created_at: coach.created_at,
-          updated_at: coach.updated_at,
+          created_at: coach.created_at || '',
+          updated_at: coach.updated_at || '',
           gym_id: coach.gym_id,
           name: coach.name,
           profile: null,
@@ -1623,26 +1655,26 @@ export async function getAllCoachesWithGymInfo() {
     }
 
     // Transform the data to handle both types of coaches
-    const transformedData = allCoaches.map(coach => ({
-      id: coach.id,
+    const transformedData: CoachWithGymInfo[] = allCoaches.map(coach => ({
+      id: coach.id || '',
       bio: coach.bio,
       specialties: coach.specialties || [],
       experience_years: coach.experience_years || 0,
       certifications: coach.certifications || [],
       platform_fee_percentage: coach.platform_fee_percentage || 5.0,
       is_verified: coach.is_verified || false,
-      created_at: coach.created_at,
-      updated_at: coach.updated_at,
+      created_at: coach.created_at || '',
+      updated_at: coach.updated_at || '',
       gym_id: coach.gym_id,
-      name: coach.name, // For gym coaches
-      // Profile data (for user coaches)
+      name: coach.name,
+      // Profile data (for user coaches) - with proper role casting
       profile: coach.profiles ? {
         id: coach.profiles.id,
         username: coach.profiles.username,
         full_name: coach.profiles.full_name,
         email: coach.profiles.email,
         avatar_url: coach.profiles.avatar_url,
-        role: coach.profiles.role
+        role: coach.profiles.role as 'user' | 'admin' | 'gym_owner' | 'coach'  // Cast the role
       } : null,
       // Gym data (for gym coaches)
       gym: coach.gyms ? {
