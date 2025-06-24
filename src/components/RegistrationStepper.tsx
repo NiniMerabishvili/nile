@@ -5,6 +5,7 @@ import {
 
 interface RegistrationStepperProps {
   currentStep: number
+  allCompleted?: boolean
   steps: {
     id: number
     name: string
@@ -13,15 +14,15 @@ interface RegistrationStepperProps {
   }[]
 }
 
-export default function RegistrationStepper({ currentStep, steps }: RegistrationStepperProps) {
+export default function RegistrationStepper({ currentStep, allCompleted = false, steps }: RegistrationStepperProps) {
   return (
     <div className="w-full py-8">
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between">
           {steps.map((step, index) => {
-            const isActive = currentStep === step.id
-            const isCompleted = currentStep > step.id
-            const isUpcoming = currentStep < step.id
+            const isActive = currentStep === step.id && !allCompleted
+            const isCompleted = allCompleted || currentStep > step.id
+            const isUpcoming = currentStep < step.id && !allCompleted
 
             return (
               <div key={step.id} className="flex items-center flex-1">
@@ -89,7 +90,7 @@ export default function RegistrationStepper({ currentStep, steps }: Registration
                   <motion.div
                     initial={false}
                     animate={{
-                      backgroundColor: currentStep > step.id ? '#10b981' : '#e5e7eb'
+                      backgroundColor: allCompleted || currentStep > step.id ? '#10b981' : '#e5e7eb'
                     }}
                     transition={{ duration: 0.3 }}
                     className="flex-1 h-0.5 mx-4 mt-[-20px]"

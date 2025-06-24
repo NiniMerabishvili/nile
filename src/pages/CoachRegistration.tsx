@@ -8,7 +8,7 @@ import {
 } from '@heroicons/react/24/outline'
 import RegistrationStepper from '../components/RegistrationStepper'
 import CoachRegistrationForm from '../components/CoachRegistrationForm'
-import { signUp, getCoachProfile } from '../lib/supabase'
+import { signUp, isCoachProfileComplete } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import toast from 'react-hot-toast'
 
@@ -56,20 +56,23 @@ export default function CoachRegistration() {
   useEffect(() => {
     if (!authLoading) {
       if (user && profile?.role === 'coach') {
-        // Check if coach profile exists AND is complete
-        getCoachProfile(user.id)
-          .then(coachProfile => {
-            if (coachProfile && coachProfile.bio && coachProfile.specialties?.length > 0) {
-              // Coach profile exists AND is complete, redirect to dashboard
-              navigate('/coach/dashboard')
+        // Check if coach profile is complete using the dedicated function
+        isCoachProfileComplete(user.id)
+          .then(isComplete => {
+            if (isComplete) {
+              // Coach profile is complete, show all steps as green and redirect after a moment
+              setCurrentStep(3) // Set to completion step first
+              setTimeout(() => {
+                navigate('/coach/dashboard')
+              }, 2000) // Show completion for 2 seconds then redirect
             } else {
-              // Coach profile doesn't exist or is incomplete, stay on step 2
+              // Coach profile is incomplete or doesn't exist, stay on step 2
               setCurrentStep(2)
             }
           })
           .catch(error => {
-            console.error('Error checking coach profile:', error)
-            // On error, assume no profile exists and show step 2
+            console.error('Error checking coach profile completion:', error)
+            // On error, assume incomplete profile and show step 2
             setCurrentStep(2)
           })
       } else if (!user) {
@@ -77,7 +80,7 @@ export default function CoachRegistration() {
         setCurrentStep(1)
       }
     }
-  }, [user, profile, authLoading, navigate])
+  }, [user, profile, authLoading, navigate, currentStep]) // Add currentStep to dependencies
 
   const handleUserRegistration = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -129,7 +132,22 @@ export default function CoachRegistration() {
   
 
   const handleCoachProfileSuccess = () => {
+    // Set to step 3 and then check completion status again
     setCurrentStep(3)
+    
+    // Force a re-check of completion status to ensure proper state
+    if (user) {
+      setTimeout(() => {
+        isCoachProfileComplete(user.id).then(isComplete => {
+          if (isComplete) {
+            // Profile is now complete, redirect to dashboard after showing success
+            setTimeout(() => {
+              navigate('/coach/dashboard')
+            }, 3000) // Show success for 3 seconds
+          }
+        })
+      }, 100) // Small delay to ensure the state update happens
+    }
   }
 
   // Add a new function to handle manual navigation
