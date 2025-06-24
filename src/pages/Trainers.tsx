@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import type { Variants } from 'framer-motion'
 import * as OutlineIcons from '@heroicons/react/24/outline'
-import { getCoaches, getTrainers, type Profile, type Trainer } from '../lib/supabase'
+import { getAllCoachesWithGymInfo, getTrainers, type Profile, type Trainer } from '../lib/supabase'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 
@@ -18,7 +18,18 @@ interface CoachWithProfile {
   is_verified: boolean
   created_at: string
   updated_at: string
+  gym_id?: string | null
+  name?: string // For gym coaches
   profile?: Profile
+  gym?: {
+    id: string
+    name: string
+    city: string
+    country: string
+    address: string
+  } | null
+  display_name: string
+  coach_type: 'user_coach' | 'gym_coach'
   type: 'coach'
 }
 
@@ -45,51 +56,50 @@ export default function Trainers() {
         setLoading(true)
         setError(null)
         
-        // Fetch both coaches and trainers
+        console.log('🔄 Starting to fetch instructors...')
+        
+        // Fetch both coaches (including gym coaches) and trainers
         const [coachesData, trainersData] = await Promise.all([
-          getCoaches(),
+          getAllCoachesWithGymInfo(),
           getTrainers()
         ])
 
-        console.log('Raw coaches data:', coachesData)
-        console.log('Raw trainers data:', trainersData)
+        console.log('📊 Raw coaches data with gym info:', coachesData)
+        console.log('📊 Raw trainers data:', trainersData)
 
-        // Transform coaches data to match our expected structure
-        const coachesWithType: CoachWithProfile[] = (coachesData || [])
-          .filter(item => item && item.coaches) // Only include items that have coach data
-          .map(item => ({
-            id: item.id,
-            bio: item.coaches.bio,
-            specialties: item.coaches.specialties || [],
-            experience_years: item.coaches.experience_years || 0,
-            certifications: item.coaches.certifications || [],
-            platform_fee_percentage: item.coaches.platform_fee_percentage || 5.0,
-            is_verified: item.coaches.is_verified || false,
-            created_at: item.coaches.created_at,
-            updated_at: item.coaches.updated_at,
-            profile: {
-              id: item.id,
-              username: item.username,
-              full_name: item.full_name,
-              email: item.email,
-              avatar_url: item.avatar_url,
-              role: item.role,
-              created_at: item.created_at,
-              updated_at: item.updated_at
-            },
-            type: 'coach' as const
-          }))
+        // Transform coaches data
+        const coachesWithType: CoachWithProfile[] = (coachesData || []).map(coach => ({
+          id: coach.id,
+          bio: coach.bio,
+          specialties: coach.specialties,
+          experience_years: coach.experience_years,
+          certifications: coach.certifications,
+          platform_fee_percentage: coach.platform_fee_percentage,
+          is_verified: coach.is_verified,
+          created_at: coach.created_at,
+          updated_at: coach.updated_at,
+          gym_id: coach.gym_id,
+          name: coach.name,
+          profile: coach.profile,
+          gym: coach.gym,
+          display_name: coach.display_name,
+          coach_type: coach.coach_type,
+          type: 'coach' as const
+        }))
 
         const trainersWithType: TrainerWithType[] = (trainersData || []).map(trainer => ({
           ...trainer,
           type: 'trainer' as const
         }))
 
+        console.log('✨ Processed coaches:', coachesWithType)
+        console.log('✨ Processed trainers:', trainersWithType)
+
         const combined: InstructorType[] = [...coachesWithType, ...trainersWithType]
-        console.log('Combined instructors:', combined)
+        console.log('🔗 Combined instructors with gym info:', combined)
         setInstructors(combined)
       } catch (error) {
-        console.error('Error fetching instructors:', error)
+        console.error('❌ Error fetching instructors:', error)
         setError('Failed to load instructors. Please try again later.')
         setInstructors([])
       } finally {
@@ -125,7 +135,7 @@ export default function Trainers() {
   // Helper functions to get properties from both types
   const getName = (instructor: InstructorType): string => {
     if (instructor.type === 'coach') {
-      return instructor.profile?.full_name || 'Coach'
+      return instructor.display_name || instructor.profile?.full_name || instructor.name || 'Coach'
     } else {
       return instructor.name
     }
@@ -264,6 +274,19 @@ export default function Trainers() {
     )
   ).sort()
 
+  // Add a new function to get gym information
+  const getGymInfo = (instructor: InstructorType): string | null => {
+    if (instructor.type === 'coach' && instructor.gym) {
+      return `${instructor.gym.name} • ${instructor.gym.city}, ${instructor.gym.country}`
+    }
+    return null
+  }
+
+  // Add a function to check if coach is from gym
+  const isGymCoach = (instructor: InstructorType): boolean => {
+    return instructor.type === 'coach' && instructor.coach_type === 'gym_coach'
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:from-dark-100 dark:via-dark-200 dark:to-dark-100">
@@ -317,7 +340,7 @@ export default function Trainers() {
               Expert Trainers & Coaches
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
-              Train with certified professionals and experienced coaches who will help you reach your martial arts and fitness goals
+              Train with certified professionals and experienced coaches from top gyms who will help you reach your martial arts and fitness goals
             </p>
           </motion.div>
         </div>
@@ -453,117 +476,130 @@ export default function Trainers() {
               const verified = isVerified(instructor)
               const rating = getRating(instructor)
               const price = getPrice(instructor)
+              const gymInfo = getGymInfo(instructor)
+              const isFromGym = isGymCoach(instructor)
 
               return (
-              <motion.div
+                <motion.div
                   key={`${instructor.type}-${instructor.id}`}
-                variants={cardVariants}
-                className="bg-white dark:bg-dark-200 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-              >
-                <div className="relative h-48 bg-gradient-to-br from-primary-400 to-purple-600">
+                  variants={cardVariants}
+                  className="bg-white dark:bg-dark-200 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+                >
+                  <div className="relative h-48 bg-gradient-to-br from-primary-400 to-purple-600">
                     {renderCoachImage(instructor, name)}
-                    {/* Hidden fallback for failed image loads */}
-                    <div className="hidden w-full h-full flex items-center justify-center bg-gray-300 dark:bg-gray-600">
-                      <OutlineIcons.UserIcon className="h-16 w-16 text-gray-500 dark:text-gray-400" />
-                    </div>
-                  <div className="absolute inset-0 bg-black bg-opacity-20" />
-                  
+                    <div className="absolute inset-0 bg-black bg-opacity-20" />
+                    
                     {/* Type Badge */}
                     <div className="absolute top-4 left-4">
                       <div className={`px-2 py-1 rounded-full text-xs flex items-center ${
                         instructor.type === 'coach' 
-                          ? 'bg-blue-500 text-white' 
-                          : 'bg-purple-500 text-white'
+                          ? isFromGym 
+                            ? 'bg-green-500 text-white'  // Gym coaches get green badge
+                            : 'bg-blue-500 text-white'   // Independent coaches get blue badge
+                          : 'bg-purple-500 text-white'   // Trainers get purple badge
                       }`}>
-                        {instructor.type === 'coach' ? 'Coach' : 'Trainer'}
+                        {instructor.type === 'coach' 
+                          ? isFromGym ? 'Gym Coach' : 'Coach'
+                          : 'Trainer'
+                        }
                       </div>
                     </div>
 
                     {/* Verification Badge */}
                     <div className="absolute top-4 right-4">
                       {verified ? (
-                      <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center">
+                        <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center">
                           <OutlineIcons.CheckBadgeIcon className="h-4 w-4 mr-1" />
-                        Verified
-                      </div>
+                          Verified
+                        </div>
                       ) : (
                         <div className="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs flex items-center">
                           <OutlineIcons.AcademicCapIcon className="h-4 w-4 mr-1" />
                           Pending
+                        </div>
+                      )}
                     </div>
-                  )}
-                    </div>
-                </div>
+                  </div>
 
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                         {name}
-                    </h3>
-                    <div className="text-right">
+                      </h3>
+                      <div className="text-right">
                         {rating > 0 && (
                           <div className="flex items-center mb-1">
                             <OutlineIcons.StarIcon className="h-4 w-4 text-yellow-400 mr-1" />
                             <span className="text-sm text-gray-600 dark:text-gray-400">{rating}</span>
                           </div>
                         )}
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-sm text-gray-500 dark:text-gray-400">
                           {experienceYears} {experienceYears === 1 ? 'year' : 'years'}
                         </div>
-                    </div>
-                  </div>
-
-                    {bio && (
-                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-3">
-                        {bio}
-                    </p>
-                  )}
-
-                    {specialties && specialties.length > 0 && (
-                    <div className="mb-4">
-                      <div className="flex flex-wrap gap-2">
-                          {specialties.slice(0, 3).map((specialty, _idx) => (
-                          <span
-                              key={_idx}
-                              className="px-3 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-full"
-                          >
-                            {specialty}
-                          </span>
-                        ))}
-                          {specialties.length > 3 && (
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                              +{specialties.length - 3} more
-                          </span>
-                        )}
                       </div>
                     </div>
-                  )}
+
+                    {/* Gym Information - NEW */}
+                    {gymInfo && (
+                      <div className="mb-3 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <div className="flex items-center text-sm text-green-700 dark:text-green-400">
+                          <OutlineIcons.BuildingOfficeIcon className="h-4 w-4 mr-1 flex-shrink-0" />
+                          <span className="truncate">{gymInfo}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {bio && (
+                      <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-3">
+                        {bio}
+                      </p>
+                    )}
+
+                    {specialties && specialties.length > 0 && (
+                      <div className="mb-4">
+                        <div className="flex flex-wrap gap-2">
+                          {specialties.slice(0, 3).map((specialty, _idx) => (
+                            <span
+                              key={_idx}
+                              className="px-3 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-full"
+                            >
+                              {specialty}
+                            </span>
+                          ))}
+                          {specialties.length > 3 && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              +{specialties.length - 3} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
                     {certifications && certifications.length > 0 && certifications[0] && (
-                    <div className="mb-4">
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Key Certifications:</p>
-                      <p className="text-sm text-gray-700 dark:text-gray-300">
+                      <div className="mb-4">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Key Certifications:</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300">
                           {certifications[0]}
                           {certifications.length > 1 && (
                             <span className="text-gray-500"> +{certifications.length - 1} more</span>
-                        )}
-                      </p>
-                    </div>
-                  )}
+                          )}
+                        </p>
+                      </div>
+                    )}
 
-                  <div className="flex justify-between items-center">
-                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
                         {price}
-                    </div>
-                    <Link
+                      </div>
+                      <Link
                         to={`/trainer/${instructor.id}`}
-                      className="btn-primary text-sm px-4 py-2"
-                    >
-                      View Profile
-                    </Link>
+                        className="btn-primary text-sm px-4 py-2"
+                      >
+                        View Profile
+                      </Link>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
+                </motion.div>
               )
             })}
           </motion.div>

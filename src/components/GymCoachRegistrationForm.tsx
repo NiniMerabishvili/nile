@@ -7,18 +7,21 @@ import {
   XMarkIcon,
   CheckCircleIcon,
   ClockIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline'
-import { createCoachProfile } from '../lib/supabase'
+import { createGymCoach } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
-interface CoachRegistrationFormProps {
+interface GymCoachRegistrationFormProps {
   onSuccess: () => void
   onBack: () => void
   loading: boolean
   setLoading: (loading: boolean) => void
+  gymId?: string | null
 }
 
 interface CoachFormData {
+  name: string
   bio: string
   specialties: string[]
   experience_years: number
@@ -43,13 +46,15 @@ const AVAILABLE_SPECIALTIES = [
   'Sports Performance'
 ]
 
-export default function CoachRegistrationForm({
+export default function GymCoachRegistrationForm({
   onSuccess,
   onBack,
   loading,
-  setLoading
-}: CoachRegistrationFormProps) {
+  setLoading,
+  gymId
+}: GymCoachRegistrationFormProps) {
   const [formData, setFormData] = useState<CoachFormData>({
+    name: '',
     bio: '',
     specialties: [],
     experience_years: 0,
@@ -61,6 +66,10 @@ export default function CoachRegistrationForm({
 
   const validateForm = (): boolean => {
     const newErrors: Partial<CoachFormData> = {}
+
+    if (!formData.name.trim()) {
+      newErrors.name = 'Coach name is required'
+    }
 
     if (!formData.bio.trim()) {
       newErrors.bio = 'Bio is required'
@@ -100,25 +109,27 @@ export default function CoachRegistrationForm({
     try {
       const validCertifications = formData.certifications.filter(cert => cert.trim())
       
-      await createCoachProfile({
+      await createGymCoach({
+        name: formData.name.trim(),
         bio: formData.bio.trim(),
         specialties: formData.specialties,
         experience_years: formData.experience_years,
         certifications: validCertifications,
         platform_fee_percentage: 5.0,
-        is_verified: true
-      }, null)
+        is_verified: true,
+        gym_id: gymId || null
+      })
 
-      toast.success('Coach profile created successfully! You are now ready to start coaching.')
+      toast.success('Coach added successfully!')
       
       setTimeout(() => {
         setLoading(false)
         onSuccess()
-      }, 2500)
+      }, 1500)
       
     } catch (error: any) {
-      console.error('Error creating coach profile:', error)
-      toast.error(error.message || 'Failed to create coach profile')
+      console.error('Error creating coach:', error)
+      toast.error(error.message || 'Failed to create coach')
       setLoading(false)
     }
   }
@@ -170,18 +181,39 @@ export default function CoachRegistrationForm({
       transition={{ duration: 0.5 }}
       className="max-w-2xl mx-auto"
     >
-      <div className="card">
+      <div className="bg-white dark:bg-dark-200 rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
             <AcademicCapIcon className="h-10 w-10 text-primary-600" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Complete Your Coach Profile</h2>
+          <h2 className="text-2xl font-bold mb-2">Add Coach</h2>
           <p className="text-gray-600 dark:text-gray-400">
-            Tell us about your expertise and experience to help students find you
+            Add a coach to your gym's team
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Coach Name */}
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium mb-2">
+              Coach Name *
+            </label>
+            <div className="relative">
+              <UserIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                id="name"
+                type="text"
+                className={`input-field pl-10 ${errors.name ? 'border-red-500' : ''}`}
+                placeholder="Enter coach's full name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              />
+            </div>
+            {errors.name && (
+              <span className="text-sm text-red-500">{errors.name}</span>
+            )}
+          </div>
+
           {/* Bio Section */}
           <div>
             <label htmlFor="bio" className="block text-sm font-medium mb-2">
@@ -191,7 +223,7 @@ export default function CoachRegistrationForm({
               id="bio"
               rows={4}
               className={`input-field ${errors.bio ? 'border-red-500' : ''}`}
-              placeholder="Tell potential students about your background, teaching philosophy, and what makes you unique as a coach..."
+              placeholder="Tell about the coach's background, teaching philosophy, and expertise..."
               value={formData.bio}
               onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
               maxLength={1000}
@@ -233,7 +265,7 @@ export default function CoachRegistrationForm({
           {/* Specialties Section */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              Specialties * <span className="text-gray-500">(Select or add your areas of expertise)</span>
+              Specialties * <span className="text-gray-500">(Select or add areas of expertise)</span>
             </label>
             
             {/* Selected Specialties */}
@@ -303,7 +335,7 @@ export default function CoachRegistrationForm({
           {/* Certifications Section */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              Certifications * <span className="text-gray-500">(Add your professional certifications)</span>
+              Certifications * <span className="text-gray-500">(Add professional certifications)</span>
             </label>
             
             <div className="space-y-3">
@@ -349,11 +381,10 @@ export default function CoachRegistrationForm({
               <StarIcon className="h-5 w-5 text-blue-600 mr-3 mt-0.5 flex-shrink-0" />
               <div>
                 <h4 className="text-sm font-medium text-blue-800 dark:text-blue-200 mb-1">
-                  Coach Revenue Structure
+                  Coach Information
                 </h4>
                 <p className="text-sm text-blue-700 dark:text-blue-300">
-                  As a coach on our platform, you'll receive 95% of all tutorial sales and coaching fees. 
-                  A 5% platform fee helps us maintain and improve the service for you and your students.
+                  This coach will be associated with your gym. They won't have a user account but will be listed as part of your gym's coaching team.
                 </p>
               </div>
             </div>
@@ -377,12 +408,12 @@ export default function CoachRegistrationForm({
               {loading ? (
                 <>
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Creating Profile...
+                  Adding Coach...
                 </>
               ) : (
                 <>
                   <CheckCircleIcon className="h-5 w-5 mr-2" />
-                  Complete Registration
+                  Add Coach
                 </>
               )}
             </button>
