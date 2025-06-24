@@ -56,14 +56,14 @@ export default function CoachRegistration() {
   useEffect(() => {
     if (!authLoading) {
       if (user && profile?.role === 'coach') {
-        // Check if coach profile exists
+        // Check if coach profile exists AND is complete
         getCoachProfile(user.id)
           .then(coachProfile => {
-            if (coachProfile) {
-              // Coach profile exists, redirect to dashboard
+            if (coachProfile && coachProfile.bio && coachProfile.specialties?.length > 0) {
+              // Coach profile exists AND is complete, redirect to dashboard
               navigate('/coach/dashboard')
             } else {
-              // Coach profile doesn't exist, stay on step 2
+              // Coach profile doesn't exist or is incomplete, stay on step 2
               setCurrentStep(2)
             }
           })
@@ -130,9 +130,11 @@ export default function CoachRegistration() {
 
   const handleCoachProfileSuccess = () => {
     setCurrentStep(3)
-    setTimeout(() => {
-      navigate('/coach/dashboard')
-    }, 2000)
+  }
+
+  // Add a new function to handle manual navigation
+  const handleProceedToDashboard = () => {
+    navigate('/coach/dashboard')
   }
 
   const handleBackToUserForm = () => {
@@ -327,9 +329,13 @@ export default function CoachRegistration() {
                     • Your profile is live and searchable
                   </p>
                 </div>
-                <p className="text-sm text-gray-500">
-                  Redirecting to your dashboard...
-                </p>
+                {/* Add manual navigation button instead of automatic redirect */}
+                <button
+                  onClick={handleProceedToDashboard}
+                  className="btn-primary w-full"
+                >
+                  Go to Coach Dashboard
+                </button>
               </div>
             </motion.div>
           )}

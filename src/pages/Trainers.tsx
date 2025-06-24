@@ -269,7 +269,7 @@ export default function Trainers() {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-purple-50 dark:from-dark-100 dark:via-dark-200 dark:to-dark-100">
         <div className="container mx-auto px-4 py-16">
           <div className="text-center">
-            <LoadingSpinner />
+          <LoadingSpinner />
             <p className="text-gray-600 dark:text-gray-400 mt-4">
               Loading amazing instructors...
             </p>
@@ -455,19 +455,19 @@ export default function Trainers() {
               const price = getPrice(instructor)
 
               return (
-                <motion.div
+              <motion.div
                   key={`${instructor.type}-${instructor.id}`}
-                  variants={cardVariants}
-                  className="bg-white dark:bg-dark-200 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
-                >
-                  <div className="relative h-48 bg-gradient-to-br from-primary-400 to-purple-600">
+                variants={cardVariants}
+                className="bg-white dark:bg-dark-200 rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+              >
+                <div className="relative h-48 bg-gradient-to-br from-primary-400 to-purple-600">
                     {renderCoachImage(instructor, name)}
                     {/* Hidden fallback for failed image loads */}
                     <div className="hidden w-full h-full flex items-center justify-center bg-gray-300 dark:bg-gray-600">
                       <OutlineIcons.UserIcon className="h-16 w-16 text-gray-500 dark:text-gray-400" />
                     </div>
-                    <div className="absolute inset-0 bg-black bg-opacity-20" />
-                    
+                  <div className="absolute inset-0 bg-black bg-opacity-20" />
+                  
                     {/* Type Badge */}
                     <div className="absolute top-4 left-4">
                       <div className={`px-2 py-1 rounded-full text-xs flex items-center ${
@@ -482,88 +482,88 @@ export default function Trainers() {
                     {/* Verification Badge */}
                     <div className="absolute top-4 right-4">
                       {verified ? (
-                        <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center">
+                      <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center">
                           <OutlineIcons.CheckBadgeIcon className="h-4 w-4 mr-1" />
-                          Verified
-                        </div>
+                        Verified
+                      </div>
                       ) : (
                         <div className="bg-yellow-500 text-white px-2 py-1 rounded-full text-xs flex items-center">
                           <OutlineIcons.AcademicCapIcon className="h-4 w-4 mr-1" />
                           Pending
-                        </div>
-                      )}
                     </div>
-                  </div>
+                  )}
+                    </div>
+                </div>
 
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
                         {name}
-                      </h3>
-                      <div className="text-right">
+                    </h3>
+                    <div className="text-right">
                         {rating > 0 && (
                           <div className="flex items-center mb-1">
                             <OutlineIcons.StarIcon className="h-4 w-4 text-yellow-400 mr-1" />
                             <span className="text-sm text-gray-600 dark:text-gray-400">{rating}</span>
                           </div>
                         )}
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">
                           {experienceYears} {experienceYears === 1 ? 'year' : 'years'}
                         </div>
-                      </div>
                     </div>
+                  </div>
 
                     {bio && (
-                      <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-3">
+                    <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-3">
                         {bio}
-                      </p>
-                    )}
+                    </p>
+                  )}
 
                     {specialties && specialties.length > 0 && (
-                      <div className="mb-4">
-                        <div className="flex flex-wrap gap-2">
+                    <div className="mb-4">
+                      <div className="flex flex-wrap gap-2">
                           {specialties.slice(0, 3).map((specialty, _idx) => (
-                            <span
+                          <span
                               key={_idx}
                               className="px-3 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-full"
-                            >
-                              {specialty}
-                            </span>
-                          ))}
+                          >
+                            {specialty}
+                          </span>
+                        ))}
                           {specialties.length > 3 && (
-                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
                               +{specialties.length - 3} more
-                            </span>
-                          )}
-                        </div>
+                          </span>
+                        )}
                       </div>
-                    )}
+                    </div>
+                  )}
 
                     {certifications && certifications.length > 0 && certifications[0] && (
-                      <div className="mb-4">
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Key Certifications:</p>
-                        <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <div className="mb-4">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Key Certifications:</p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300">
                           {certifications[0]}
                           {certifications.length > 1 && (
                             <span className="text-gray-500"> +{certifications.length - 1} more</span>
-                          )}
-                        </p>
-                      </div>
-                    )}
-
-                    <div className="flex justify-between items-center">
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
-                        {price}
-                      </div>
-                      <Link
-                        to={`/trainer/${instructor.id}`}
-                        className="btn-primary text-sm px-4 py-2"
-                      >
-                        View Profile
-                      </Link>
+                        )}
+                      </p>
                     </div>
+                  )}
+
+                  <div className="flex justify-between items-center">
+                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                        {price}
+                    </div>
+                    <Link
+                        to={`/trainer/${instructor.id}`}
+                      className="btn-primary text-sm px-4 py-2"
+                    >
+                      View Profile
+                    </Link>
                   </div>
-                </motion.div>
+                </div>
+              </motion.div>
               )
             })}
           </motion.div>

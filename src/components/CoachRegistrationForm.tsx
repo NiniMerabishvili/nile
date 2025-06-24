@@ -110,11 +110,15 @@ export default function CoachRegistrationForm({
       })
 
       toast.success('Coach profile created successfully! You are now ready to start coaching.')
-      onSuccess()
+      
+      setTimeout(() => {
+        setLoading(false)
+        onSuccess()
+      }, 2500)
+      
     } catch (error: any) {
       console.error('Error creating coach profile:', error)
       toast.error(error.message || 'Failed to create coach profile')
-    } finally {
       setLoading(false)
     }
   }
