@@ -1586,7 +1586,7 @@ export async function createGymCoach(coachData: {
   }
 }
 
-// Enhanced function to get all coaches including gym coaches with gym info
+// Update the getAllCoachesWithGymInfo function to properly fetch user coach names
 export async function getAllCoachesWithGymInfo(): Promise<CoachWithGymInfo[]> {
   try {
     console.log('🔍 Fetching all coaches with gym info...')
@@ -1599,11 +1599,13 @@ export async function getAllCoachesWithGymInfo(): Promise<CoachWithGymInfo[]> {
     console.log('Simple coaches query result:', { simpleCoaches, simpleError })
 
     // Get all coaches including both user coaches and gym coaches
+    // Note: The LEFT JOIN will work for user coaches, and return null profiles for gym coaches
     const { data: allCoaches, error: coachesError } = await supabase
       .from('coaches')
       .select(`
         *,
-        profiles:id (
+        profiles!left (
+          id,
           full_name,
           email,
           username,
@@ -1625,26 +1627,72 @@ export async function getAllCoachesWithGymInfo(): Promise<CoachWithGymInfo[]> {
     if (coachesError) {
       console.error('Error fetching coaches with gym info:', coachesError)
       
-      // Fallback to simple query if complex query fails
-      console.log('Falling back to simple query...')
+      // Fallback: try to get coaches and profiles separately
+      console.log('Falling back to separate queries...')
       if (simpleCoaches && simpleCoaches.length > 0) {
-        return simpleCoaches.map(coach => ({
-          id: coach.id || '',
-          bio: coach.bio,
-          specialties: coach.specialties || [],
-          experience_years: coach.experience_years || 0,
-          certifications: coach.certifications || [],
-          platform_fee_percentage: coach.platform_fee_percentage || 5.0,
-          is_verified: coach.is_verified || false,
-          created_at: coach.created_at || '',
-          updated_at: coach.updated_at || '',
-          gym_id: coach.gym_id,
-          name: coach.name,
-          profile: null,
-          gym: null,
-          display_name: coach.name || 'Unknown Coach',
-          coach_type: coach.name ? 'gym_coach' : 'user_coach'
-        }))
+        // Get profiles for user coaches
+        const userCoachIds = simpleCoaches
+          .filter(coach => !coach.name) // User coaches don't have a name field
+          .map(coach => coach.id)
+        
+        let profiles = []
+        if (userCoachIds.length > 0) {
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', userCoachIds)
+          profiles = profilesData || []
+        }
+
+        // Get gyms for gym coaches
+        const gymCoachIds = simpleCoaches
+          .filter(coach => coach.gym_id)
+          .map(coach => coach.gym_id)
+        
+        let gyms = []
+        if (gymCoachIds.length > 0) {
+          const { data: gymsData } = await supabase
+            .from('gyms')
+            .select('*')
+            .in('id', gymCoachIds)
+          gyms = gymsData || []
+        }
+
+        return simpleCoaches.map(coach => {
+          const profile = profiles.find(p => p.id === coach.id)
+          const gym = gyms.find(g => g.id === coach.gym_id)
+          
+          return {
+            id: coach.id || '',
+            bio: coach.bio,
+            specialties: coach.specialties || [],
+            experience_years: coach.experience_years || 0,
+            certifications: coach.certifications || [],
+            platform_fee_percentage: coach.platform_fee_percentage || 5.0,
+            is_verified: coach.is_verified || false,
+            created_at: coach.created_at || '',
+            updated_at: coach.updated_at || '',
+            gym_id: coach.gym_id,
+            name: coach.name,
+            profile: profile ? {
+              id: profile.id,
+              username: profile.username,
+              full_name: profile.full_name,
+              email: profile.email,
+              avatar_url: profile.avatar_url,
+              role: profile.role as 'user' | 'admin' | 'gym_owner' | 'coach'
+            } : null,
+            gym: gym ? {
+              id: gym.id,
+              name: gym.name,
+              city: gym.city,
+              country: gym.country,
+              address: gym.address
+            } : null,
+            display_name: profile?.full_name || coach.name || 'Unknown Coach',
+            coach_type: profile ? 'user_coach' : 'gym_coach'
+          }
+        })
       }
       return []
     }
@@ -1655,40 +1703,50 @@ export async function getAllCoachesWithGymInfo(): Promise<CoachWithGymInfo[]> {
     }
 
     // Transform the data to handle both types of coaches
-    const transformedData: CoachWithGymInfo[] = allCoaches.map(coach => ({
-      id: coach.id || '',
-      bio: coach.bio,
-      specialties: coach.specialties || [],
-      experience_years: coach.experience_years || 0,
-      certifications: coach.certifications || [],
-      platform_fee_percentage: coach.platform_fee_percentage || 5.0,
-      is_verified: coach.is_verified || false,
-      created_at: coach.created_at || '',
-      updated_at: coach.updated_at || '',
-      gym_id: coach.gym_id,
-      name: coach.name,
-      // Profile data (for user coaches) - with proper role casting
-      profile: coach.profiles ? {
-        id: coach.profiles.id,
-        username: coach.profiles.username,
-        full_name: coach.profiles.full_name,
-        email: coach.profiles.email,
-        avatar_url: coach.profiles.avatar_url,
-        role: coach.profiles.role as 'user' | 'admin' | 'gym_owner' | 'coach'  // Cast the role
-      } : null,
-      // Gym data (for gym coaches)
-      gym: coach.gyms ? {
-        id: coach.gyms.id,
-        name: coach.gyms.name,
-        city: coach.gyms.city,
-        country: coach.gyms.country,
-        address: coach.gyms.address
-      } : null,
-      // Helper to get display name
-      display_name: coach.profiles?.full_name || coach.name || 'Unknown Coach',
-      // Type identification
-      coach_type: coach.profiles ? 'user_coach' : 'gym_coach'
-    }))
+    const transformedData: CoachWithGymInfo[] = allCoaches.map(coach => {
+      console.log('Processing coach:', {
+        id: coach.id,
+        name: coach.name,
+        profile: coach.profiles,
+        hasProfile: !!coach.profiles,
+        profileFullName: coach.profiles?.full_name
+      })
+
+      return {
+        id: coach.id || '',
+        bio: coach.bio,
+        specialties: coach.specialties || [],
+        experience_years: coach.experience_years || 0,
+        certifications: coach.certifications || [],
+        platform_fee_percentage: coach.platform_fee_percentage || 5.0,
+        is_verified: coach.is_verified || false,
+        created_at: coach.created_at || '',
+        updated_at: coach.updated_at || '',
+        gym_id: coach.gym_id,
+        name: coach.name,
+        // Profile data (for user coaches) - with proper role casting
+        profile: coach.profiles ? {
+          id: coach.profiles.id,
+          username: coach.profiles.username,
+          full_name: coach.profiles.full_name,
+          email: coach.profiles.email,
+          avatar_url: coach.profiles.avatar_url,
+          role: coach.profiles.role as 'user' | 'admin' | 'gym_owner' | 'coach'
+        } : null,
+        // Gym data (for gym coaches)
+        gym: coach.gyms ? {
+          id: coach.gyms.id,
+          name: coach.gyms.name,
+          city: coach.gyms.city,
+          country: coach.gyms.country,
+          address: coach.gyms.address
+        } : null,
+        // Helper to get display name - prioritize profile full_name for user coaches
+        display_name: coach.profiles?.full_name || coach.name || 'Unknown Coach',
+        // Type identification
+        coach_type: coach.profiles ? 'user_coach' : 'gym_coach'
+      }
+    })
 
     console.log(`✅ Found ${transformedData.length} coaches (including gym coaches)`, transformedData)
     return transformedData
