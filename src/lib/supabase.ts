@@ -1563,12 +1563,13 @@ export async function createGymCoach(coachData: {
     // Generate a UUID for gym coaches (not linked to auth.users)
     const coachId = self.crypto.randomUUID() // Use self.crypto instead of crypto
     
-    // Create coach record without user account
+    // Create coach record without user account - FIXED: Added photo field
     const { data, error } = await supabase
       .from('coaches')
       .insert([{ 
         id: coachId, // Generate a random UUID for gym coaches
         name: coachData.name, // Use the name field for gym coaches
+        photo: coachData.photo, // ✅ FIXED: Include photo field in the insert
         bio: coachData.bio,
         specialties: coachData.specialties,
         experience_years: coachData.experience_years,
@@ -1585,6 +1586,7 @@ export async function createGymCoach(coachData: {
       throw new Error(error.message || 'Failed to create coach')
     }
 
+    console.log('✅ Coach created successfully with photo:', data)
     return data as Coach
   } catch (error) {
     console.error('Error creating gym coach:', error)
