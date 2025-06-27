@@ -16,6 +16,7 @@ import CoachDashboard from '@/pages/CoachDashboard'
 import CoachRegistration from '@/pages/CoachRegistration'
 import CoachTutorials from '@/pages/CoachTutorials'
 import AddGym from '@/pages/AddGym'
+import EditGym from '@/pages/EditGym'
 import Profile from '@/pages/Profile'
 import { ThemeProvider } from '@/context/ThemeContext'
 import { AuthProvider } from '@/context/AuthContext'
@@ -47,6 +48,7 @@ function App() {
               <Route path="/coach/tutorials" element={<CoachTutorials />} />
               <Route path="/coach" element={<CoachDashboard />} />
               <Route path="/add-gym" element={<AddGym />} />
+              <Route path="/edit-gym/:id" element={<EditGym />} />
               <Route path="/profile" element={<Profile />} />
             </Routes>
           </Layout>

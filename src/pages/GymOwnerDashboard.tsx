@@ -8,6 +8,7 @@ import {
   XMarkIcon,
   PlusIcon,
   EyeIcon,
+  PencilIcon,
   MapPinIcon,
   InformationCircleIcon
 } from '@heroicons/react/24/outline'
@@ -341,14 +342,25 @@ export default function GymOwnerDashboard() {
                           </div>
 
                           <div className="flex items-center justify-between pt-4 border-t border-gray-100 dark:border-dark-400">
-                            <button
-                              onClick={() => setSelectedGym(gym)}
-                              className="flex items-center space-x-2 px-4 py-2 text-gray-700 dark:text-gray-300 
-                                       hover:bg-gray-100 dark:hover:bg-dark-400 rounded-lg transition-colors"
-                            >
-                              <EyeIcon className="h-4 w-4" />
-                              <span>View Details</span>
-                            </button>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => setSelectedGym(gym)}
+                                className="flex items-center space-x-2 px-4 py-2 text-gray-700 dark:text-gray-300 
+                                         hover:bg-gray-100 dark:hover:bg-dark-400 rounded-lg transition-colors"
+                              >
+                                <EyeIcon className="h-4 w-4" />
+                                <span>View Details</span>
+                              </button>
+
+                              <Link
+                                to={`/edit-gym/${gym.id}`}
+                                className="flex items-center space-x-2 px-4 py-2 text-primary-700 dark:text-primary-300 
+                                         hover:bg-primary-50 dark:hover:bg-primary-900/20 rounded-lg transition-colors"
+                              >
+                                <PencilIcon className="h-4 w-4" />
+                                <span>Edit</span>
+                              </Link>
+                            </div>
 
                             {gym.status === 'approved' && (
                               <Link

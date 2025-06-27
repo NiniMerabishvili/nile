@@ -32,23 +32,24 @@ export interface Category {
 
 // Updated Gym interface to match your actual table structure
 export interface Gym {
-  id: number  // int8 from your table
-  created_at: string  // timestamptz
-  owner_id: string  // uuid
-  owner_name?: string  // Added owner_name property
-  name: string  // text
-  description: string  // text
-  address: string  // text
-  city: string  // text
-  country: string  // text
-  phone_number: string  // text
-  email: string  // text
-  website: string  // text
-  images: string[]  // text[]
-  latitude: number  // float8
-  longitude: number  // float8 (note: your column might be named 'longtitude' - we'll handle this)
-  status: 'pending' | 'approved' | 'rejected'  // text with default 'pending'
-  categories?: Category[]  // Will be populated when fetching with categories
+  id: string | number  // Temporarily allow both until data is migrated
+  created_at: string
+  updated_at?: string
+  owner_id: string
+  owner_name?: string
+  name: string
+  description: string
+  address: string
+  city: string
+  country: string
+  phone_number: string
+  email: string
+  website: string
+  images: string[]
+  latitude: number
+  longitude: number
+  status: 'pending' | 'approved' | 'rejected'
+  categories?: Category[]
 }
 
 // Gym to Categories relationship
@@ -1503,6 +1504,61 @@ export async function checkGymNameExists(name: string): Promise<boolean> {
   }
 }
 
+// Add this debug function to help troubleshoot
+export async function debugGymAccess(gymId: string, userId: string) {
+  console.log('🔍 DEBUG: Starting gym access check', { gymId, userId })
+  
+  try {
+    // Check if gym exists at all
+    const { data: allGyms } = await supabase
+      .from('gyms')
+      .select('id, owner_id, name, status')
+      .limit(10)
+    
+    console.log('🔍 DEBUG: All gyms sample:', allGyms)
+    
+    // Check specific gym
+    const { data: specificGym, error: specificError } = await supabase
+      .from('gyms')
+      .select('id, owner_id, name, status')
+      .eq('id', gymId)
+      .single()
+    
+    console.log('🔍 DEBUG: Specific gym lookup:', {
+      gymId,
+      found: !!specificGym,
+      gymData: specificGym,
+      error: specificError
+    })
+    
+    // Check user's gyms
+    const { data: userGyms, error: userGymsError } = await supabase
+      .from('gyms')
+      .select('id, owner_id, name, status')
+      .eq('owner_id', userId)
+    
+    console.log('🔍 DEBUG: User\'s gyms:', {
+      userId,
+      count: userGyms?.length || 0,
+      gyms: userGyms,
+      error: userGymsError
+    })
+    
+    return {
+      allGyms,
+      specificGym,
+      userGyms,
+      gymExists: !!specificGym,
+      isOwner: specificGym?.owner_id === userId
+    }
+    
+  } catch (error) {
+    console.error('🔍 DEBUG: Error in debug function:', error)
+    return null
+  }
+}
+
+// Ultra-detailed debugging version of updateGymByOwner
 export async function updateGymByOwner(gymId: string, gymData: {
   name: string
   description: string
@@ -1522,23 +1578,100 @@ export async function updateGymByOwner(gymId: string, gymData: {
     throw new Error('User must be authenticated to update a gym')
   }
 
-  const { data, error } = await supabase
-    .from('gyms')
-    .update({
-      ...gymData,
-      updated_at: new Date().toISOString()
-    })
-    .eq('id', gymId)
-    .eq('owner_id', user.id) // Ensure only the owner can update their gym
-    .select()
-    .single()
+  console.log('🔍 ULTRA DEBUG - Starting gym update:', {
+    gymId,
+    gymIdType: typeof gymId,
+    gymIdLength: gymId?.length,
+    userId: user.id,
+    userIdType: typeof user.id,
+    userRole: user.user_metadata?.role,
+    isGymOwner: user.user_metadata?.is_gym_owner
+  })
 
-  if (error) {
-    console.error('Error updating gym:', error)
+  try {
+    // Step 1: Check if gym exists at all
+    console.log('📍 Step 1: Checking if gym exists...')
+    const { data: gymExists, error: existError } = await supabase
+      .from('gyms')
+      .select('id, name, owner_id, status')
+      .eq('id', gymId)
+      .single()
+
+    console.log('📍 Step 1 result:', {
+      exists: !!gymExists,
+      gymData: gymExists,
+      error: existError
+    })
+
+    if (existError) {
+      if (existError.code === 'PGRST116') {
+        throw new Error(`Gym with ID "${gymId}" does not exist in the database`)
+      }
+      throw new Error(`Database error checking gym existence: ${existError.message}`)
+    }
+
+    // Step 2: Check ownership
+    console.log('📍 Step 2: Checking ownership...')
+    const isOwner = gymExists.owner_id === user.id
+    console.log('📍 Step 2 result:', {
+      gymOwnerId: gymExists.owner_id,
+      currentUserId: user.id,
+      isOwner,
+      ownerIdType: typeof gymExists.owner_id,
+      userIdType: typeof user.id
+    })
+
+    if (!isOwner) {
+      throw new Error(`Access denied. Gym "${gymExists.name}" belongs to user ${gymExists.owner_id}, but you are ${user.id}`)
+    }
+
+    // Step 3: Attempt the update
+    console.log('📍 Step 3: Attempting update...')
+    const { data: updateResult, error: updateError } = await supabase
+      .from('gyms')
+      .update(gymData)
+      .eq('id', gymId)
+      .eq('owner_id', user.id)
+      .select()
+
+    console.log('📍 Step 3 result:', {
+      updateResult,
+      updateError,
+      resultCount: updateResult?.length || 0
+    })
+
+    if (updateError) {
+      throw new Error(`Update failed: ${updateError.message}`)
+    }
+
+    if (!updateResult || updateResult.length === 0) {
+      // This is the specific error you're getting
+      console.error('🚨 UPDATE RETURNED NO ROWS - Detailed investigation:')
+      
+      // Let's check what happened
+      const { data: recheckGym } = await supabase
+        .from('gyms')
+        .select('id, name, owner_id, status, updated_at')
+        .eq('id', gymId)
+        .single()
+      
+      console.error('🚨 Gym status after failed update:', recheckGym)
+      
+      throw new Error(`Update query completed but no rows were affected. Gym still exists: ${!!recheckGym}`)
+    }
+
+    console.log('✅ Update successful:', updateResult[0])
+    return updateResult[0] as Gym
+
+  } catch (error: any) {
+    console.error('❌ ULTRA DEBUG - Complete error details:', {
+      error,
+      errorMessage: error.message,
+      errorCode: error.code,
+      errorDetails: error.details
+    })
     throw error
   }
-
-  return data as Gym
 }
 
 // Add this new function to create gym coaches (without user accounts)
