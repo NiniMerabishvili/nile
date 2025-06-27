@@ -748,7 +748,7 @@ export async function getGymsByStatus(status: 'pending' | 'approved' | 'rejected
 }
 
 export function getImageUrl(path: string): string {
-  const { data } = supabase.storage.from('gym-images').getPublicUrl(path)
+  const { data } = supabase.storage.from('gymimages').getPublicUrl(path)
   return data.publicUrl
 }
 
@@ -1753,5 +1753,106 @@ export async function getAllCoachesWithGymInfo(): Promise<CoachWithGymInfo[]> {
   } catch (error) {
     console.error('Error in getAllCoachesWithGymInfo:', error)
     return []
+  }
+}
+
+// Function to upload gym image
+export async function uploadGymImage(file: File, gymId?: string): Promise<string> {
+  const user = await getCurrentUser()
+  if (!user) {
+    throw new Error('You must be logged in to upload images')
+  }
+
+  // Validate file type
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Please select a valid image file')
+  }
+
+  // Validate file size (10MB limit)
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('Image size must be less than 10MB')
+  }
+
+  // Generate unique filename
+  const fileExt = file.name.split('.').pop()?.toLowerCase()
+  const folder = gymId || user.id
+  const fileName = `${folder}/${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`
+
+  // Upload to Supabase Storage using 'gymimages' bucket
+  const { error: uploadError } = await supabase.storage
+    .from('gymimages')
+    .upload(fileName, file, {
+      cacheControl: '3600',
+      upsert: false
+    })
+
+  if (uploadError) {
+    console.error('Upload error:', uploadError)
+    throw new Error(`Failed to upload image: ${uploadError.message}`)
+  }
+
+  // Get public URL
+  const { data } = supabase.storage
+    .from('gymimages')
+    .getPublicUrl(fileName)
+
+  if (!data.publicUrl) {
+    throw new Error('Failed to get public URL for uploaded image')
+  }
+
+  return data.publicUrl
+}
+
+// Function to delete gym image
+export async function deleteGymImage(imageUrl: string): Promise<void> {
+  if (!imageUrl.includes('gymimages')) {
+    return // Not an uploaded image, skip deletion
+  }
+
+  try {
+    const pathMatch = imageUrl.match(/gymimages\/(.+)$/)
+    if (pathMatch) {
+      const filePath = pathMatch[1]
+      const { error } = await supabase.storage
+        .from('gymimages')
+        .remove([filePath])
+      
+      if (error) {
+        console.error('Error deleting image from storage:', error)
+        throw error
+      }
+    }
+  } catch (error) {
+    console.error('Error deleting gym image:', error)
+    throw error
+  }
+}
+
+// Function to cleanup gym images when gym is deleted
+export async function cleanupGymImages(gymId: string): Promise<void> {
+  try {
+    const { data: files, error: listError } = await supabase.storage
+      .from('gymimages')
+      .list(gymId)
+
+    if (listError) {
+      console.error('Error listing gym images:', listError)
+      return
+    }
+
+    if (files && files.length > 0) {
+      const filesToRemove = files.map((file) => `${gymId}/${file.name}`)
+      const { error: removeError } = await supabase.storage
+        .from('gymimages')
+        .remove(filesToRemove)
+
+      if (removeError) {
+        console.error('Error removing gym images:', removeError)
+        throw removeError
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up gym images:', error)
+    throw error
   }
 } 

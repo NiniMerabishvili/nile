@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import GymCoachRegistrationForm from '../components/GymCoachRegistrationForm'
+import GymImageUploader from '../components/GymImageUploader'
 import {
   BuildingOfficeIcon,
   PhoneIcon,
@@ -53,7 +54,6 @@ export default function AddGym() {
     longitude: 0
   })
   
-  const [imageUrl, setImageUrl] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -97,21 +97,8 @@ export default function AddGym() {
     }))
   }
 
-  const handleAddImage = () => {
-    if (imageUrl.trim() && !formData.images.includes(imageUrl.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, imageUrl.trim()]
-      }))
-      setImageUrl('')
-    }
-  }
-
-  const handleRemoveImage = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index)
-    }))
+  const handleImagesChange = (newImages: string[]) => {
+    setFormData(prev => ({ ...prev, images: newImages }))
   }
 
   const handleGymSubmit = async (e: React.FormEvent) => {
@@ -206,40 +193,17 @@ export default function AddGym() {
         initial="initial"
         animate="animate"
         variants={fadeIn}
-        className="max-w-5xl mx-auto"
+        className="max-w-4xl mx-auto"
       >
-        {/* Progress Steps */}
-        <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center space-x-4">
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-              currentStep === 'gym' ? 'bg-primary-600 text-white' : 'bg-green-600 text-white'
-            }`}>
-              <BuildingOfficeIcon className="h-4 w-4" />
-            </div>
-            <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Gym Details {tempGymId && '✓'}
-            </div>
-            <div className="w-16 h-px bg-gray-300 dark:bg-gray-600"></div>
-            <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-              currentStep === 'coaches' ? 'bg-primary-600 text-white' : 'bg-gray-300 text-gray-600'
-            }`}>
-              <UserGroupIcon className="h-4 w-4" />
-            </div>
-            <div className="text-sm font-medium text-gray-600 dark:text-gray-400">
-              Add Coaches
-            </div>
-          </div>
-        </div>
-
         {currentStep === 'gym' && (
           <>
             <div className="text-center mb-8">
               <BuildingOfficeIcon className="h-16 w-16 text-primary-600 mx-auto mb-4" />
               <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                List Your Gym
+                Add Your Gym
               </h1>
               <p className="text-lg text-gray-600 dark:text-gray-400">
-                Submit your gym details for review. Once approved, it will be visible to users.
+                Share your gym details with potential members
               </p>
             </div>
 
@@ -250,7 +214,7 @@ export default function AddGym() {
                 </div>
               )}
 
-              <form onSubmit={handleGymSubmit} className="space-y-8">
+              <form onSubmit={handleGymSubmit} className="space-y-6">
                 {/* Basic Information */}
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
@@ -274,7 +238,7 @@ export default function AddGym() {
 
                   <div>
                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Contact Email *
+                      Email Address *
                     </label>
                     <div className="relative">
                       <EnvelopeIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -309,9 +273,11 @@ export default function AddGym() {
                   />
                 </div>
 
-                {/* Location Selector */}
+                {/* Location */}
                 <div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Location *</h3>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Location *
+                  </label>
                   <SimpleLocationSelector
                     onLocationChange={handleLocationChange}
                     initialValues={{
@@ -364,55 +330,12 @@ export default function AddGym() {
                   </div>
                 </div>
 
-                {/* Images */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Gym Photos (Optional)
-                  </label>
-                  <div className="space-y-4">
-                    <div className="flex gap-2">
-                      <div className="relative flex-1">
-                        <PhotoIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                        <input
-                          type="url"
-                          className="input-field pl-10"
-                          placeholder="Enter image URL"
-                          value={imageUrl}
-                          onChange={(e) => setImageUrl(e.target.value)}
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleAddImage}
-                        className="btn-primary px-4 py-2"
-                        disabled={!imageUrl.trim()}
-                      >
-                        Add
-                      </button>
-                    </div>
-                    
-                    {formData.images.length > 0 && (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {formData.images.map((image, index) => (
-                          <div key={index} className="relative group">
-                            <img
-                              src={image}
-                              alt={`Gym photo ${index + 1}`}
-                              className="w-full h-32 object-cover rounded-lg"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveImage(index)}
-                              className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                {/* Replace the old Images section with the new component */}
+                <GymImageUploader
+                  images={formData.images}
+                  onImagesChange={handleImagesChange}
+                  maxImages={12}
+                />
 
                 {/* Submit Button */}
                 <div className="pt-6">
