@@ -169,6 +169,12 @@ export default function GymImageUploader({
     }
   }
 
+  // Handle click on the entire upload area
+  const handleUploadAreaClick = () => {
+    if (uploading || images.length >= maxImages || storageError) return
+    fileInputRef.current?.click()
+  }
+
   const dismissStorageError = () => {
     setStorageError(null)
   }
@@ -202,17 +208,22 @@ export default function GymImageUploader({
 
       {/* Upload Options */}
       <div className="space-y-4">
-        {/* Drag & Drop Upload Area */}
+        {/* Drag & Drop Upload Area - Now Entirely Clickable */}
         <div
-          className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
+          className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 ${
             dragActive 
-              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20' 
-              : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
-          } ${images.length >= maxImages ? 'opacity-50 pointer-events-none' : ''} ${storageError ? 'opacity-50' : ''}`}
+              ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 scale-[1.02]' 
+              : 'border-gray-300 dark:border-gray-600 hover:border-primary-400 dark:hover:border-primary-500'
+          } ${
+            images.length >= maxImages ? 'opacity-50 pointer-events-none' : ''
+          } ${
+            storageError ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-dark-300/50'
+          }`}
           onDragEnter={handleDrag}
           onDragLeave={handleDrag}
           onDragOver={handleDrag}
           onDrop={handleDrop}
+          onClick={handleUploadAreaClick}
         >
           <input
             ref={fileInputRef}
@@ -225,29 +236,35 @@ export default function GymImageUploader({
           />
           
           {uploading ? (
-            <div className="space-y-2">
-              <div className="animate-spin h-8 w-8 border-2 border-primary-600 border-t-transparent rounded-full mx-auto"></div>
-              <p className="text-sm text-gray-600 dark:text-gray-400">Uploading images...</p>
+            <div className="space-y-3">
+              <div className="animate-spin h-10 w-10 border-3 border-primary-600 border-t-transparent rounded-full mx-auto"></div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Uploading images...</p>
             </div>
           ) : (
-            <div className="space-y-2">
-              <CloudArrowUpIcon className="h-12 w-12 text-gray-400 mx-auto" />
+            <div className="space-y-3">
+              <CloudArrowUpIcon className={`h-12 w-12 mx-auto transition-colors ${
+                dragActive 
+                  ? 'text-primary-500' 
+                  : 'text-gray-400 group-hover:text-primary-500'
+              }`} />
               <div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-primary-600 hover:text-primary-700 font-medium disabled:text-gray-400 disabled:cursor-not-allowed"
-                  disabled={images.length >= maxImages || !!storageError}
-                >
-                  Click to upload
-                </button>
-                <span className="text-gray-600 dark:text-gray-400"> or drag and drop</span>
+                <p className="text-primary-600 hover:text-primary-700 font-medium text-lg">
+                  Click here to upload
+                </p>
               </div>
               <p className="text-xs text-gray-500">
                 {storageError ? 'File upload temporarily unavailable' : 'PNG, JPG, GIF up to 10MB each'}
               </p>
+          
             </div>
           )}
+          
+          {/* Hover effect overlay */}
+          <div className={`absolute inset-0 rounded-lg transition-all duration-200 ${
+            dragActive 
+              ? 'bg-primary-500/10' 
+              : 'bg-transparent hover:bg-primary-500/5'
+          }`}></div>
         </div>
 
         {/* URL Input - Always available */}
@@ -307,7 +324,7 @@ export default function GymImageUploader({
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="aspect-square rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-primary-500 dark:hover:border-primary-400 transition-colors flex items-center justify-center text-gray-400 hover:text-primary-500"
+                className="aspect-square rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-primary-500 dark:hover:border-primary-400 transition-all duration-200 flex items-center justify-center text-gray-400 hover:text-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20"
                 disabled={uploading}
               >
                 <div className="text-center">
