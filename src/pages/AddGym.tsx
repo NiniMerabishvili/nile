@@ -8,7 +8,6 @@ import {
   PhoneIcon,
   EnvelopeIcon,
   GlobeAltIcon,
-  PhotoIcon,
   InformationCircleIcon,
   UserGroupIcon,
   PlusIcon,
