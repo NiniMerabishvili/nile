@@ -67,37 +67,6 @@ export default function GymCoachRegistrationForm({
   const [newSpecialty, setNewSpecialty] = useState('')
   const [errors, setErrors] = useState<Partial<CoachFormData>>({})
 
-  const validateForm = (): boolean => {
-    const newErrors: Partial<CoachFormData> = {}
-
-    if (!formData.name.trim()) {
-      newErrors.name = 'Coach name is required'
-    }
-
-    if (!formData.bio.trim()) {
-      newErrors.bio = 'Bio is required'
-    } else if (formData.bio.length > 1000) {
-      newErrors.bio = 'Bio must be less than 1000 characters'
-    }
-
-    if (formData.specialties.length === 0) {
-      newErrors.specialties = ['At least one specialty is required']
-    }
-
-    if (formData.experience_years < 0) {
-      newErrors.experience_years = 0
-    } else if (formData.experience_years > 50) {
-      newErrors.experience_years = 50
-    }
-
-    const validCertifications = formData.certifications.filter(cert => cert.trim())
-    if (validCertifications.length === 0) {
-      newErrors.certifications = ['At least one certification is required']
-    }
-
-    setErrors(newErrors)
-    return Object.keys(newErrors).length === 0
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
