@@ -5,15 +5,27 @@ import type { Variants } from 'framer-motion'
 import {
   MapPinIcon,
   StarIcon,
-  ClockIcon,
   AcademicCapIcon,
   ChatBubbleLeftRightIcon,
+  BuildingOfficeIcon,
+  UserIcon,
+  CheckBadgeIcon,
+  ArrowLeftIcon
 } from '@heroicons/react/24/outline'
 import { getCoachProfile, getAllTutorialsByCoach, type Coach, type Profile, type Tutorial } from '../lib/supabase'
 import LoadingSpinner from '../components/LoadingSpinner'
 
 interface CoachWithProfile extends Coach {
   profile?: Profile
+  gym?: {
+    id: string
+    name: string
+    city: string
+    country: string
+    address: string
+  }
+  display_name?: string
+  coach_type?: 'user_coach' | 'gym_coach'
 }
 
 export default function TrainerProfile() {
@@ -56,6 +68,29 @@ export default function TrainerProfile() {
     fetchProfileData()
   }, [id])
 
+  // Get display name for both user and gym coaches
+  const getDisplayName = () => {
+    if (coach?.display_name) return coach.display_name
+    if (coach?.profile?.full_name) return coach.profile.full_name
+    if (coach?.name) return coach.name
+    return 'Unknown Coach'
+  }
+
+  // Get avatar image for both user and gym coaches
+  const getAvatar = () => {
+    if (coach?.photo) return coach.photo // Gym coach photo
+    if (coach?.profile?.avatar_url) return coach.profile.avatar_url // User coach avatar
+    return '/default-avatar.jpg' // Fallback
+  }
+
+  // Get coach location
+  const getLocation = () => {
+    if (coach?.gym) {
+      return `${coach.gym.city}, ${coach.gym.country} (${coach.gym.name})`
+    }
+    return 'Available Online'
+  }
+
   const fadeIn: Variants = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0, transition: { duration: 0.6 } }
@@ -63,7 +98,7 @@ export default function TrainerProfile() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-100">
         <LoadingSpinner />
       </div>
     )
@@ -71,10 +106,10 @@ export default function TrainerProfile() {
 
   if (error || !coach) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-100">
         <div className="text-center">
           <h3 className="text-xl font-semibold mb-2">Profile Not Found</h3>
-          <p className="text-gray-600 mb-4">{error || 'Unable to load profile'}</p>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error || 'Unable to load profile'}</p>
           <button
             onClick={() => navigate('/trainers')}
             className="bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700"
@@ -121,202 +156,212 @@ export default function TrainerProfile() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Hero Section */}
-      <section className="relative h-[400px] -mt-8">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary-600 to-primary-800 opacity-90" />
-        <div className="absolute inset-0 bg-[url('/trainer-bg.jpg')] bg-cover bg-center mix-blend-overlay" />
-        <div className="container mx-auto px-4 h-full">
-          <div className="flex items-end h-full pb-8 relative z-10">
-            <div className="flex items-end space-x-8">
-              <img
-                src={coach.profile?.avatar_url || '/default-avatar.jpg'}
-                alt={coach.profile?.full_name}
-                className="w-40 h-40 rounded-xl object-cover border-4 border-white shadow-lg"
-              />
-              <div className="text-white pb-2">
-                <h1 className="text-4xl font-bold mb-2">{coach.profile?.full_name}</h1>
+    <div className="min-h-screen bg-gray-50 dark:bg-dark-100">
+      {/* Back Button */}
+      <div className="bg-white dark:bg-dark-200 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div className="container mx-auto px-4 py-4">
+          <button
+            onClick={() => navigate('/trainers')}
+            className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+          >
+            <ArrowLeftIcon className="h-5 w-5 mr-2" />
+            Back to Trainers
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-8">
+        {/* Hero Section */}
+        <section className="relative py-16 bg-gradient-to-r from-primary-600 to-primary-800">
+          <div className="absolute inset-0 bg-black opacity-20"></div>
+          <div className="container mx-auto px-4 relative z-10">
+            <div className="flex items-center space-x-8">
+              {/* Avatar */}
+              <div className="relative">
+                <div className="w-32 h-32 rounded-xl overflow-hidden border-4 border-white shadow-lg bg-gray-300 dark:bg-gray-600">
+                  {getAvatar() !== '/default-avatar.jpg' ? (
+                    <img
+                      src={getAvatar()}
+                      alt={getDisplayName()}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement
+                        target.style.display = 'none'
+                        const fallback = target.parentElement?.querySelector('.fallback-avatar') as HTMLElement
+                        if (fallback) fallback.classList.remove('hidden')
+                      }}
+                    />
+                  ) : null}
+                  
+                  {/* Default avatar placeholder */}
+                  <div className={`fallback-avatar w-full h-full flex items-center justify-center ${getAvatar() !== '/default-avatar.jpg' ? 'hidden' : ''}`}>
+                    <UserIcon className="h-16 w-16 text-gray-500 dark:text-gray-400" />
+                  </div>
+                </div>
+                
+                {coach.is_verified && (
+                  <div className="absolute -bottom-2 -right-2 bg-green-500 text-white p-2 rounded-full">
+                    <CheckBadgeIcon className="h-6 w-6" />
+                  </div>
+                )}
+              </div>
+              
+              {/* Coach Info */}
+              <div className="text-white">
+                <h1 className="text-4xl font-bold mb-2">{getDisplayName()}</h1>
                 <p className="text-xl text-primary-100 mb-4">{coach.specialties?.[0] || 'Professional Coach'}</p>
                 <div className="flex items-center space-x-6">
                   <div className="flex items-center">
                     <MapPinIcon className="h-5 w-5 mr-2" />
-                    <span>Available Online</span>
+                    <span>{getLocation()}</span>
                   </div>
                   <div className="flex items-center">
                     <StarIcon className="h-5 w-5 text-yellow-400 mr-2" />
-                    <span>{coach.is_verified ? 'Verified Coach' : 'New Coach'}</span>
+                    <span>{coach.experience_years} years experience</span>
                   </div>
+                  {coach.gym && (
+                    <div className="flex items-center">
+                      <BuildingOfficeIcon className="h-5 w-5 mr-2" />
+                      <span>{coach.gym.name}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <motion.div
-            initial="initial"
-            animate="animate"
-            variants={fadeIn}
-            className="lg:col-span-2 space-y-8"
-          >
-            {/* About */}
-            <div className="card">
-              <h2 className="text-xl font-semibold mb-4">About Me</h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                {coach.bio || 'Bio not available'}
-              </p>
-            </div>
-
-            {/* Certifications */}
-            {coach.certifications && coach.certifications.length > 0 && (
-              <div className="card">
-                <h2 className="text-xl font-semibold mb-4">Certifications</h2>
-                <div className="space-y-3">
-                  {coach.certifications.map((cert) => (
-                    <div
-                      key={cert}
-                      className="flex items-center text-gray-600 dark:text-gray-400"
-                    >
-                      <AcademicCapIcon className="h-5 w-5 text-primary-600 mr-3" />
-                      <span>{cert}</span>
-                    </div>
-                  ))}
-                </div>
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Main Content */}
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={fadeIn}
+              className="lg:col-span-2 space-y-8"
+            >
+              {/* About */}
+              <div className="bg-white dark:bg-dark-200 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">About Me</h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {coach.bio || 'Bio not available'}
+                </p>
               </div>
-            )}
 
-            {/* Specialties */}
-            {coach.specialties && coach.specialties.length > 0 && (
-              <div className="card">
-                <h2 className="text-xl font-semibold mb-4">Specialties</h2>
-                <div className="flex flex-wrap gap-2">
-                  {coach.specialties.map((specialty) => (
-                    <span
-                      key={specialty}
-                      className="px-3 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-600 rounded-full"
-                    >
-                      {specialty}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Tutorials */}
-            {tutorials.length > 0 && (
-              <div className="card">
-                <h2 className="text-xl font-semibold mb-4">Tutorials</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {tutorials.map((tutorial) => (
-                    <div
-                      key={tutorial.id}
-                      className="border border-gray-200 dark:border-dark-300 rounded-lg p-4"
-                    >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">{tutorial.title}</h3>
-                        <span className="font-bold text-primary-600">${tutorial.price}</span>
+              {/* Certifications */}
+              {coach.certifications && coach.certifications.length > 0 && (
+                <div className="bg-white dark:bg-dark-200 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+                  <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Certifications</h2>
+                  <div className="space-y-3">
+                    {coach.certifications.map((cert, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center text-gray-600 dark:text-gray-400"
+                      >
+                        <AcademicCapIcon className="h-5 w-5 text-primary-600 mr-3" />
+                        <span>{cert}</span>
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mb-3 line-clamp-2">
-                        {tutorial.description}
-                      </p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-gray-500">
-                          {tutorial.duration_minutes} minutes
-                        </span>
-                        <span className={`text-xs px-2 py-1 rounded-full ${
-                          tutorial.difficulty_level === 'beginner' 
-                            ? 'bg-green-100 text-green-700' 
-                            : tutorial.difficulty_level === 'intermediate'
-                            ? 'bg-yellow-100 text-yellow-700'
-                            : 'bg-red-100 text-red-700'
-                        }`}>
-                          {tutorial.difficulty_level}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Schedule */}
-            <div className="card">
-              <h2 className="text-xl font-semibold mb-4">Availability</h2>
-              <div className="space-y-4">
-                {Object.entries(availability).map(([days, hours]) => (
-                  <div
-                    key={days}
-                    className="flex items-start justify-between text-gray-600 dark:text-gray-400"
-                  >
-                    <div className="flex items-center">
-                      <ClockIcon className="h-5 w-5 mr-2" />
-                      <span>{days}</span>
-                    </div>
-                    <span>{hours}</span>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              )}
 
-            {/* Reviews - Placeholder for now */}
-            <div className="card">
-              <h2 className="text-xl font-semibold mb-6">Client Reviews</h2>
-              <p className="text-gray-600 dark:text-gray-400">
-                No reviews yet. Be the first to leave a review!
-              </p>
-            </div>
-          </motion.div>
+              {/* Specialties */}
+              {coach.specialties && coach.specialties.length > 0 && (
+                <div className="bg-white dark:bg-dark-200 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+                  <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Specialties</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {coach.specialties.map((specialty, index) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1 bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 rounded-full"
+                      >
+                        {specialty}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-          {/* Sidebar */}
-          <motion.div
-            initial="initial"
-            animate="animate"
-            variants={fadeIn}
-            className="lg:col-span-1"
-          >
-            <div className="sticky top-24 space-y-6">
-              {/* Booking Card */}
-              <div className="card">
-                <h2 className="text-xl font-semibold mb-6">Book a Session</h2>
+              {/* Tutorials */}
+              {tutorials.length > 0 && (
+                <div className="bg-white dark:bg-dark-200 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+                  <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Tutorials</h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {tutorials.slice(0, 4).map((tutorial) => (
+                      <div key={tutorial.id} className="border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+                        <h3 className="font-semibold text-gray-900 dark:text-white">{tutorial.title}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{tutorial.description}</p>
+                        <div className="flex items-center justify-between mt-3">
+                          <span className="text-primary-600 dark:text-primary-400 font-semibold">${tutorial.price}</span>
+                          <span className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 px-2 py-1 rounded">
+                            {tutorial.difficulty_level}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+
+            {/* Sidebar */}
+            <motion.div
+              initial="initial"
+              animate="animate"
+              variants={fadeIn}
+              className="space-y-6"
+            >
+              {/* Training Packages */}
+              <div className="bg-white dark:bg-dark-200 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Training Packages</h2>
                 <div className="space-y-4">
                   {packages.map((pkg) => (
-                    <button
+                    <div
                       key={pkg.id}
-                      onClick={() => setSelectedPackage(pkg.id)}
-                      className={`w-full p-4 rounded-lg border-2 transition-all text-left ${
+                      className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
                         selectedPackage === pkg.id
-                          ? 'border-primary-600 bg-primary-50 dark:bg-primary-900/20'
-                          : 'border-gray-200 dark:border-dark-300 hover:border-primary-300'
+                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                          : 'border-gray-200 dark:border-gray-600 hover:border-primary-300'
                       }`}
+                      onClick={() => setSelectedPackage(pkg.id)}
                     >
-                      <div className="flex justify-between items-start mb-2">
-                        <h3 className="font-semibold">{pkg.name}</h3>
-                        <span className="font-bold text-primary-600">{pkg.price}</span>
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="font-semibold text-gray-900 dark:text-white">{pkg.name}</h3>
+                        <span className="text-primary-600 dark:text-primary-400 font-bold">{pkg.price}</span>
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {pkg.description}
-                      </p>
-                    </button>
+                      <p className="text-sm text-gray-600 dark:text-gray-400">{pkg.description}</p>
+                    </div>
                   ))}
                 </div>
-                <button className="btn-primary w-full mt-6">
-                  Book Selected Package
+                <button className="w-full mt-4 bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors">
+                  Book Now
                 </button>
               </div>
 
-              {/* Contact Card */}
-              <div className="card">
-                <h2 className="text-xl font-semibold mb-4">Get in Touch</h2>
-                <button className="btn-secondary w-full flex items-center justify-center">
+              {/* Availability */}
+              <div className="bg-white dark:bg-dark-200 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Availability</h2>
+                <div className="space-y-3">
+                  {Object.entries(availability).map(([day, time]) => (
+                    <div key={day} className="flex justify-between">
+                      <span className="text-gray-600 dark:text-gray-400">{day}</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{time}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Contact */}
+              <div className="bg-white dark:bg-dark-200 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Get in Touch</h2>
+                <button className="w-full bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white py-3 rounded-lg font-semibold hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors flex items-center justify-center">
                   <ChatBubbleLeftRightIcon className="h-5 w-5 mr-2" />
                   Send Message
                 </button>
               </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </div>
       </div>
     </div>

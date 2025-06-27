@@ -90,6 +90,7 @@ export interface Profile {
 export interface Coach {
   id?: string  // Make id optional since we'll generate it
   name?: string  // Add name field for gym coaches
+  photo?: string  // Add photo field for coaches
   bio?: string
   specialties: string[]
   experience_years: number
@@ -179,6 +180,8 @@ export interface Purchase {
 // Update the CoachWithGymInfo interface to handle the role type properly
 export interface CoachWithGymInfo {
   id: string
+  name?: string
+  photo?: string  // Add photo field
   bio?: string
   specialties: string[]
   experience_years: number
@@ -188,14 +191,13 @@ export interface CoachWithGymInfo {
   created_at: string
   updated_at: string
   gym_id?: string | null
-  name?: string
   profile?: {
     id: string
     username?: string
     full_name?: string
     email?: string
     avatar_url?: string
-    role: 'user' | 'admin' | 'gym_owner' | 'coach'  // Use the proper union type
+    role: 'user' | 'admin' | 'gym_owner' | 'coach'
   } | null
   gym?: {
     id: string
@@ -431,32 +433,14 @@ export async function updateGymCategories(gymId: string, categoryIds: string[]) 
 }
 
 export async function getTrainers() {
-  const { data, error } = await supabase
-    .from('trainers')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching trainers:', error)
-    return []
-  }
-
-  return data
+  // Since the trainers table doesn't exist, return empty array
+  console.warn('Trainers table does not exist, returning empty array')
+  return []
 }
 
-export async function getTrainerById(id: string) {
-  const { data, error } = await supabase
-    .from('trainers')
-    .select('*')
-    .eq('id', id)
-    .single()
-
-  if (error) {
-    console.error('Error fetching trainer:', error)
-    return null
-  }
-
-  return data
+export async function getTrainerById(_id: string) {
+  console.warn('Trainers table does not exist, returning null')
+  return null
 }
 
 export async function searchGyms(query: string) {
@@ -505,19 +489,9 @@ export async function searchGyms(query: string) {
   }
 }
 
-export async function searchTrainers(query: string) {
-  const { data, error } = await supabase
-    .from('trainers')
-    .select('*')
-    .or(`name.ilike.%${query}%,specialty.ilike.%${query}%,location.ilike.%${query}%`)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error searching trainers:', error)
-    return []
-  }
-
-  return data
+export async function searchTrainers(_query: string) {
+  console.warn('Trainers table does not exist, returning empty array')
+  return []
 }
 
 export async function submitContactForm(formData: {
@@ -992,33 +966,56 @@ export async function getCoachesByGym(gymId: string) {
   try {
     console.log('getCoachesByGym called with gymId:', gymId)
     
-    const { data, error } = await supabase
+    // First, get coaches for this gym
+    const { data: coaches, error: coachesError } = await supabase
       .from('coaches')
-      .select(`
-        *,
-        profiles:id (
-          full_name,
-          email,
-          username,
-          avatar_url
-        )
-      `)
+      .select('*')
       .eq('gym_id', gymId)
 
-    if (error) {
-      console.error('Error fetching coaches by gym:', error)
-      throw error
+    if (coachesError) {
+      console.error('Error fetching coaches by gym:', coachesError)
+      throw coachesError
     }
 
-    console.log('Coaches by gym data:', data)
+    if (!coaches || coaches.length === 0) {
+      console.log('No coaches found for gym:', gymId)
+      return []
+    }
+
+    // Get user IDs that have profiles (user coaches)
+    const userCoachIds = coaches
+      .filter(coach => !coach.name) // User coaches don't have a name field
+      .map(coach => coach.id)
+      .filter(Boolean)
+
+    // Get profiles for user coaches
+    let profiles: any[] = []
+    if (userCoachIds.length > 0) {
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('full_name, email, username, avatar_url')
+        .in('id', userCoachIds)
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError)
+      } else {
+        profiles = profilesData || []
+      }
+    }
+
+    console.log('Coaches by gym data:', coaches)
     
     // Transform the data to handle both user coaches and gym coaches
-    const transformedData = data?.map(coach => ({
-      ...coach,
-      // Use profile name if available (for user coaches), otherwise use coach name (for gym coaches)
-      display_name: coach.profiles?.full_name || coach.name || 'Unknown Coach',
-      profile: coach.profiles
-    })) || []
+    const transformedData = coaches.map(coach => {
+      const profile = profiles.find(p => p.id === coach.id)
+      
+      return {
+        ...coach,
+        // Use profile name if available (for user coaches), otherwise use coach name (for gym coaches)
+        display_name: profile?.full_name || coach.name || 'Unknown Coach',
+        profiles: profile || null // Use profiles key to match the interface in AddGym
+      }
+    })
 
     return transformedData
   } catch (error) {
@@ -1381,57 +1378,65 @@ export async function getIncompleteCoachProfile(userId: string) {
   }
 }
 
-// Get coach profile by ID
-export async function getCoachProfile(userId: string) {
+// Updated getCoachProfile function to handle both user coaches and gym coaches
+export async function getCoachProfile(coachId: string) {
   try {
-    console.log('getCoachProfile called with userId:', userId)
+    console.log('getCoachProfile called with coachId:', coachId)
     
-    // First, get the profile data
-    const { data: profile, error: profileError } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .eq('role', 'coach')
-      .single()
-
-    if (profileError || !profile) {
-      console.error('Error fetching coach profile:', profileError)
-      return null
-    }
-
-    console.log('Profile found:', profile)
-
-    // Then get the coach-specific data
+    // First, get the coach data from coaches table
     const { data: coachData, error: coachError } = await supabase
       .from('coaches')
       .select('*')
-      .eq('id', userId)
+      .eq('id', coachId)
       .single()
 
     if (coachError || !coachData) {
       console.error('Error fetching coach data:', coachError)
-      // Return profile data even if coach data is missing (for incomplete profiles)
-      return {
-        id: profile.id,
-        bio: '',
-        specialties: [],
-        experience_years: 0,
-        certifications: [],
-        platform_fee_percentage: 5.0,
-        is_verified: false,
-        gym_id: null,
-        created_at: profile.created_at || new Date().toISOString(),
-        updated_at: profile.updated_at || new Date().toISOString(),
-        profile: profile
-      }
+      return null
     }
 
     console.log('Coach data found:', coachData)
 
+    // Check if this is a user coach (no name field) or gym coach (has name field)
+    let profile = null
+    
+    // If coach doesn't have a name field, it's a user coach - try to get profile
+    if (!coachData.name) {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', coachId)
+        .single()
+
+      if (!profileError && profileData) {
+        profile = profileData
+        console.log('Profile found for user coach:', profile)
+      }
+    }
+
+    // Get gym info if coach is associated with a gym
+    let gym = null
+    if (coachData.gym_id) {
+      const { data: gymData, error: gymError } = await supabase
+        .from('gyms')
+        .select('id, name, city, country, address')
+        .eq('id', coachData.gym_id)
+        .single()
+
+      if (!gymError && gymData) {
+        gym = gymData
+        console.log('Gym found for coach:', gym)
+      }
+    }
+
     // Combine the data
     const combinedData = {
       ...coachData,
-      profile: profile
+      profile: profile,
+      gym: gym,
+      // Helper fields for display
+      display_name: profile?.full_name || coachData.name || 'Unknown Coach',
+      coach_type: profile ? 'user_coach' : 'gym_coach'
     }
 
     console.log('Combined coach profile data:', combinedData)
@@ -1539,6 +1544,7 @@ export async function updateGymByOwner(gymId: string, gymData: {
 // Add this new function to create gym coaches (without user accounts)
 export async function createGymCoach(coachData: {
   name: string
+  photo?: string  // Add photo field
   bio: string
   specialties: string[]
   experience_years: number
@@ -1586,134 +1592,77 @@ export async function createGymCoach(coachData: {
   }
 }
 
-// Update the getAllCoachesWithGymInfo function to properly fetch user coach names
+// Update the getAllCoachesWithGymInfo function to avoid foreign key relationship issues
 export async function getAllCoachesWithGymInfo(): Promise<CoachWithGymInfo[]> {
   try {
     console.log('🔍 Fetching all coaches with gym info...')
     
-    // First, let's check if there are any coaches at all
-    const { data: simpleCoaches, error: simpleError } = await supabase
+    // First, get all coaches
+    const { data: coaches, error: coachesError } = await supabase
       .from('coaches')
       .select('*')
-    
-    console.log('Simple coaches query result:', { simpleCoaches, simpleError })
-
-    // Get all coaches including both user coaches and gym coaches
-    // Note: The LEFT JOIN will work for user coaches, and return null profiles for gym coaches
-    const { data: allCoaches, error: coachesError } = await supabase
-      .from('coaches')
-      .select(`
-        *,
-        profiles!left (
-          id,
-          full_name,
-          email,
-          username,
-          avatar_url,
-          role
-        ),
-        gyms:gym_id (
-          id,
-          name,
-          city,
-          country,
-          address
-        )
-      `)
       .order('created_at', { ascending: false })
 
-    console.log('Complex coaches query result:', { allCoaches, coachesError })
-
     if (coachesError) {
-      console.error('Error fetching coaches with gym info:', coachesError)
-      
-      // Fallback: try to get coaches and profiles separately
-      console.log('Falling back to separate queries...')
-      if (simpleCoaches && simpleCoaches.length > 0) {
-        // Get profiles for user coaches
-        const userCoachIds = simpleCoaches
-          .filter(coach => !coach.name) // User coaches don't have a name field
-          .map(coach => coach.id)
-        
-        let profiles = []
-        if (userCoachIds.length > 0) {
-          const { data: profilesData } = await supabase
-            .from('profiles')
-            .select('*')
-            .in('id', userCoachIds)
-          profiles = profilesData || []
-        }
-
-        // Get gyms for gym coaches
-        const gymCoachIds = simpleCoaches
-          .filter(coach => coach.gym_id)
-          .map(coach => coach.gym_id)
-        
-        let gyms = []
-        if (gymCoachIds.length > 0) {
-          const { data: gymsData } = await supabase
-            .from('gyms')
-            .select('*')
-            .in('id', gymCoachIds)
-          gyms = gymsData || []
-        }
-
-        return simpleCoaches.map(coach => {
-          const profile = profiles.find(p => p.id === coach.id)
-          const gym = gyms.find(g => g.id === coach.gym_id)
-          
-          return {
-            id: coach.id || '',
-            bio: coach.bio,
-            specialties: coach.specialties || [],
-            experience_years: coach.experience_years || 0,
-            certifications: coach.certifications || [],
-            platform_fee_percentage: coach.platform_fee_percentage || 5.0,
-            is_verified: coach.is_verified || false,
-            created_at: coach.created_at || '',
-            updated_at: coach.updated_at || '',
-            gym_id: coach.gym_id,
-            name: coach.name,
-            profile: profile ? {
-              id: profile.id,
-              username: profile.username,
-              full_name: profile.full_name,
-              email: profile.email,
-              avatar_url: profile.avatar_url,
-              role: profile.role as 'user' | 'admin' | 'gym_owner' | 'coach'
-            } : null,
-            gym: gym ? {
-              id: gym.id,
-              name: gym.name,
-              city: gym.city,
-              country: gym.country,
-              address: gym.address
-            } : null,
-            display_name: profile?.full_name || coach.name || 'Unknown Coach',
-            coach_type: profile ? 'user_coach' : 'gym_coach'
-          }
-        })
-      }
+      console.error('Error fetching coaches:', coachesError)
       return []
     }
 
-    if (!allCoaches || allCoaches.length === 0) {
+    if (!coaches || coaches.length === 0) {
       console.log('No coaches found in database')
       return []
     }
 
+    // Get unique coach IDs that have profiles (user coaches)
+    const userCoachIds = coaches
+      .filter(coach => !coach.name) // User coaches don't have a name field
+      .map(coach => coach.id)
+      .filter(Boolean)
+
+    // Get profiles for user coaches
+    let profiles: any[] = []
+    if (userCoachIds.length > 0) {
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', userCoachIds)
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError)
+      } else {
+        profiles = profilesData || []
+      }
+    }
+
+    // Get unique gym IDs
+    const gymIds = coaches
+      .map(coach => coach.gym_id)
+      .filter(Boolean)
+
+    // Get gyms for gym coaches
+    let gyms: any[] = []
+    if (gymIds.length > 0) {
+      const { data: gymsData, error: gymsError } = await supabase
+        .from('gyms')
+        .select('*')
+        .in('id', gymIds)
+
+      if (gymsError) {
+        console.error('Error fetching gyms:', gymsError)
+      } else {
+        gyms = gymsData || []
+      }
+    }
+
     // Transform the data to handle both types of coaches
-    const transformedData: CoachWithGymInfo[] = allCoaches.map(coach => {
-      console.log('Processing coach:', {
-        id: coach.id,
-        name: coach.name,
-        profile: coach.profiles,
-        hasProfile: !!coach.profiles,
-        profileFullName: coach.profiles?.full_name
-      })
+    const transformedData: CoachWithGymInfo[] = coaches.map(coach => {
+      const profile = profiles.find(p => p.id === coach.id)
+      const gym = gyms.find(g => g.id === coach.gym_id)
 
       return {
         id: coach.id || '',
+        name: coach.name,
+        photo: coach.photo, // Include photo field
         bio: coach.bio,
         specialties: coach.specialties || [],
         experience_years: coach.experience_years || 0,
@@ -1723,28 +1672,27 @@ export async function getAllCoachesWithGymInfo(): Promise<CoachWithGymInfo[]> {
         created_at: coach.created_at || '',
         updated_at: coach.updated_at || '',
         gym_id: coach.gym_id,
-        name: coach.name,
-        // Profile data (for user coaches) - with proper role casting
-        profile: coach.profiles ? {
-          id: coach.profiles.id,
-          username: coach.profiles.username,
-          full_name: coach.profiles.full_name,
-          email: coach.profiles.email,
-          avatar_url: coach.profiles.avatar_url,
-          role: coach.profiles.role as 'user' | 'admin' | 'gym_owner' | 'coach'
+        // Profile data (for user coaches)
+        profile: profile ? {
+          id: profile.id,
+          username: profile.username,
+          full_name: profile.full_name,
+          email: profile.email,
+          avatar_url: profile.avatar_url,
+          role: profile.role as 'user' | 'admin' | 'gym_owner' | 'coach'
         } : null,
         // Gym data (for gym coaches)
-        gym: coach.gyms ? {
-          id: coach.gyms.id,
-          name: coach.gyms.name,
-          city: coach.gyms.city,
-          country: coach.gyms.country,
-          address: coach.gyms.address
+        gym: gym ? {
+          id: gym.id,
+          name: gym.name,
+          city: gym.city,
+          country: gym.country,
+          address: gym.address
         } : null,
-        // Helper to get display name - prioritize profile full_name for user coaches
-        display_name: coach.profiles?.full_name || coach.name || 'Unknown Coach',
+        // Helper to get display name
+        display_name: profile?.full_name || coach.name || 'Unknown Coach',
         // Type identification
-        coach_type: coach.profiles ? 'user_coach' : 'gym_coach'
+        coach_type: profile ? 'user_coach' : 'gym_coach'
       }
     })
 

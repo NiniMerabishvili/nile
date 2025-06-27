@@ -20,13 +20,16 @@ import toast from 'react-hot-toast'
 
 interface Coach {
   id: string
+  name?: string  // Add name field for gym coaches
+  photo?: string  // Add photo field for coach photos
   bio: string
   specialties: string[]
   experience_years: number
   certifications: string[]
-  profiles: {
+  profiles?: {  // Make profiles optional since gym coaches might not have them
     full_name: string
     email: string
+    avatar_url?: string
   }
 }
 
@@ -377,15 +380,33 @@ export default function AddGym() {
                     {addedCoaches.map((coach) => (
                       <div key={coach.id} className="flex items-center justify-between p-4 bg-gray-50 dark:bg-dark-300 rounded-lg">
                         <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
-                            <AcademicCapIcon className="h-6 w-6 text-primary-600" />
+                          {/* Coach Photo */}
+                          <div className="w-12 h-12 rounded-full overflow-hidden bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center relative">
+                            {coach.photo || coach.profiles?.avatar_url ? (
+                              <img
+                                src={coach.photo || coach.profiles?.avatar_url}
+                                alt={coach.profiles?.full_name || coach.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  // Fallback to icon if image fails
+                                  const target = e.target as HTMLImageElement
+                                  target.style.display = 'none'
+                                  const fallback = target.parentElement?.querySelector('.fallback-icon') as HTMLElement
+                                  if (fallback) fallback.style.display = 'flex'
+                                }}
+                              />
+                            ) : null}
+                            <AcademicCapIcon 
+                              className="fallback-icon h-6 w-6 text-primary-600 absolute inset-0 m-auto" 
+                              style={{ display: coach.photo || coach.profiles?.avatar_url ? 'none' : 'block' }}
+                            />
                           </div>
                           <div>
                             <h4 className="font-medium text-gray-900 dark:text-white">
-                              {coach.profiles.full_name}
+                              {coach.profiles?.full_name || coach.name}
                             </h4>
                             <p className="text-sm text-gray-600 dark:text-gray-400">
-                              {coach.profiles.email}
+                              {coach.profiles?.email || 'Gym Coach'}
                             </p>
                             <p className="text-sm text-gray-500">
                               {coach.specialties.slice(0, 2).join(', ')}

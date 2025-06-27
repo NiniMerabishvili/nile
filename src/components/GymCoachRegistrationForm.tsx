@@ -10,6 +10,7 @@ import {
   UserIcon,
 } from '@heroicons/react/24/outline'
 import { createGymCoach } from '../lib/supabase'
+import CoachPhotoUploader from './CoachPhotoUploader'
 import toast from 'react-hot-toast'
 
 interface GymCoachRegistrationFormProps {
@@ -22,6 +23,7 @@ interface GymCoachRegistrationFormProps {
 
 interface CoachFormData {
   name: string
+  photo: string
   bio: string
   specialties: string[]
   experience_years: number
@@ -55,6 +57,7 @@ export default function GymCoachRegistrationForm({
 }: GymCoachRegistrationFormProps) {
   const [formData, setFormData] = useState<CoachFormData>({
     name: '',
+    photo: '',
     bio: '',
     specialties: [],
     experience_years: 0,
@@ -98,38 +101,41 @@ export default function GymCoachRegistrationForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setErrors({})
 
-    if (!validateForm()) {
-      toast.error('Please fix the errors before submitting')
+    // Validation
+    const newErrors: Record<string, string> = {}
+    if (!formData.name.trim()) newErrors.name = 'Coach name is required'
+    if (!formData.bio.trim()) newErrors.bio = 'Bio is required'
+    if (formData.specialties.length === 0) newErrors.specialties = 'At least one specialty is required'
+    if (formData.experience_years < 0) newErrors.experience_years = 'Experience years cannot be negative'
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
       return
     }
 
     setLoading(true)
-
+    
     try {
-      const validCertifications = formData.certifications.filter(cert => cert.trim())
-      
       await createGymCoach({
-        name: formData.name.trim(),
-        bio: formData.bio.trim(),
+        name: formData.name,
+        photo: formData.photo,
+        bio: formData.bio,
         specialties: formData.specialties,
         experience_years: formData.experience_years,
-        certifications: validCertifications,
+        certifications: formData.certifications,
         platform_fee_percentage: 5.0,
-        is_verified: true,
-        gym_id: gymId || null
+        is_verified: false,
+        gym_id: gymId
       })
 
       toast.success('Coach added successfully!')
-      
-      setTimeout(() => {
-        setLoading(false)
-        onSuccess()
-      }, 1500)
-      
-    } catch (error: any) {
+      onSuccess()
+    } catch (error) {
       console.error('Error creating coach:', error)
-      toast.error(error.message || 'Failed to create coach')
+      toast.error(error instanceof Error ? error.message : 'Failed to create coach')
+    } finally {
       setLoading(false)
     }
   }
@@ -174,12 +180,16 @@ export default function GymCoachRegistrationForm({
     })
   }
 
+  const handlePhotoChange = (photo: string) => {
+    setFormData({ ...formData, photo })
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ duration: 0.5 }}
-      className="max-w-2xl mx-auto"
+      className="max-w-4xl mx-auto"
     >
       <div className="bg-white dark:bg-dark-200 rounded-2xl shadow-xl p-8">
         <div className="text-center mb-8">
@@ -192,7 +202,7 @@ export default function GymCoachRegistrationForm({
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-8">
           {/* Coach Name */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium mb-2">
@@ -213,6 +223,13 @@ export default function GymCoachRegistrationForm({
               <span className="text-sm text-red-500">{errors.name}</span>
             )}
           </div>
+
+          {/* Coach Photo */}
+          <CoachPhotoUploader
+            photo={formData.photo}
+            onPhotoChange={handlePhotoChange}
+            coachName={formData.name || "Coach"}
+          />
 
           {/* Bio Section */}
           <div>
@@ -265,31 +282,30 @@ export default function GymCoachRegistrationForm({
           {/* Specialties Section */}
           <div>
             <label className="block text-sm font-medium mb-2">
-              Specialties * <span className="text-gray-500">(Select or add areas of expertise)</span>
+              Specialties * <span className="text-gray-500">(Select or add coaching specialties)</span>
             </label>
             
             {/* Selected Specialties */}
-            <div className="flex flex-wrap gap-2 mb-3">
-              {formData.specialties.map((specialty, index) => (
-                <motion.span
-                  key={index}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300"
-                >
-                  {specialty}
-                  <button
-                    type="button"
-                    onClick={() => removeSpecialty(index)}
-                    className="ml-2 text-primary-500 hover:text-primary-700"
+            {formData.specialties.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {formData.specialties.map((specialty, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-200"
                   >
-                    <XMarkIcon className="h-4 w-4" />
-                  </button>
-                </motion.span>
-              ))}
-            </div>
+                    {specialty}
+                    <button
+                      type="button"
+                      onClick={() => removeSpecialty(index)}
+                      className="ml-2 text-primary-600 hover:text-primary-800"
+                    >
+                      <XMarkIcon className="h-4 w-4" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
 
-            {/* Specialty Selection */}
             <div className="space-y-3">
               <select
                 className="input-field"

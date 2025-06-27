@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import type { Variants } from 'framer-motion'
 import {
@@ -11,19 +11,42 @@ import {
   PhotoIcon,
   CalendarIcon,
   TagIcon,
-  UserIcon
+  UserIcon,
+  AcademicCapIcon,
+  StarIcon,
+  CheckBadgeIcon,
+  ArrowRightIcon
 } from '@heroicons/react/24/outline'
-import { getGymById, type Gym } from '@/lib/supabase'
+import { getGymById, getCoachesByGym, type Gym } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 import LocationDisplay from '@/components/LocationDisplay'
 import GymImageDisplay from '@/components/GymImageDisplay'
 import LoadingSpinner from '@/components/LoadingSpinner'
 
+interface Coach {
+  id: string
+  name?: string
+  photo?: string
+  bio?: string
+  specialties: string[]
+  experience_years: number
+  certifications: string[]
+  is_verified: boolean
+  gym_id: string
+  profile?: {
+    id: string
+    full_name: string
+    avatar_url?: string
+  }
+}
+
 export default function GymProfile() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [gym, setGym] = useState<Gym | null>(null)
+  const [coaches, setCoaches] = useState<Coach[]>([])
   const [loading, setLoading] = useState(true)
+  const [coachesLoading, setCoachesLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [imageErrors, setImageErrors] = useState<Set<number>>(new Set())
   const [showAllPhotos, setShowAllPhotos] = useState(false)
@@ -49,6 +72,10 @@ export default function GymProfile() {
       }
 
       setGym(gymData)
+      
+      // Fetch coaches for this gym
+      await fetchGymCoaches(gymId)
+      
     } catch (error) {
       console.error('Error fetching gym:', error)
       setError('Failed to load gym details')
@@ -56,6 +83,24 @@ export default function GymProfile() {
       navigate('/gyms')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchGymCoaches = async (gymId: string) => {
+    try {
+      setCoachesLoading(true)
+      console.log('Fetching coaches for gym:', gymId)
+      
+      const coachesData = await getCoachesByGym(gymId)
+      console.log('Coaches data received:', coachesData)
+      
+      setCoaches(coachesData || [])
+    } catch (error) {
+      console.error('Error fetching gym coaches:', error)
+      // Don't show error toast for coaches, just log it
+      setCoaches([])
+    } finally {
+      setCoachesLoading(false)
     }
   }
 
@@ -82,6 +127,47 @@ export default function GymProfile() {
 
   const navigateToGallery = () => {
     setShowAllPhotos(true)
+  }
+
+  const getCoachDisplayName = (coach: Coach): string => {
+    if (coach.profile?.full_name) {
+      return coach.profile.full_name
+    }
+    return coach.name || 'Unknown Coach'
+  }
+
+  const getCoachAvatar = (coach: Coach): string => {
+    // For gym coaches, use the photo field; for user coaches, use profile avatar_url
+    return coach.photo || coach.profile?.avatar_url || ''
+  }
+
+  const renderCoachAvatar = (coach: Coach) => {
+    const avatar = getCoachAvatar(coach)
+    const name = getCoachDisplayName(coach)
+    
+    return (
+      <div className="relative w-full h-full">
+        {avatar && avatar.trim() ? (
+          <img
+            src={avatar}
+            alt={`${name}`}
+            className="w-full h-full object-cover"
+            onError={(e) => {
+              // Fallback to default avatar if image fails to load
+              const target = e.target as HTMLImageElement
+              target.style.display = 'none'
+              const fallback = target.parentElement?.querySelector('.fallback-avatar') as HTMLElement
+              if (fallback) fallback.classList.remove('hidden')
+            }}
+          />
+        ) : null}
+        
+        {/* Default avatar placeholder */}
+        <div className={`fallback-avatar w-full h-full flex items-center justify-center bg-gray-300 dark:bg-gray-600 ${avatar && avatar.trim() ? 'hidden' : ''}`}>
+          <UserIcon className="h-16 w-16 text-gray-500 dark:text-gray-400" />
+        </div>
+      </div>
+    )
   }
 
   if (loading) {
@@ -229,26 +315,104 @@ export default function GymProfile() {
               </div>
             </div>
 
-            {/* Categories Section - Only show if categories exist */}
-            {gym.categories && gym.categories.length > 0 && (
-              <div className="card">
-                <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center">
-                  <TagIcon className="h-6 w-6 mr-3 text-primary-600" />
-                  Categories
-                </h2>
-                <div className="flex flex-wrap gap-3">
-                  {gym.categories.map((category, index) => (
-                    <span
-                      key={category.id || index}
-                      className="inline-flex items-center px-4 py-2 bg-primary-100 dark:bg-primary-900/30 text-primary-800 dark:text-primary-200 rounded-full text-sm font-medium hover:bg-primary-200 dark:hover:bg-primary-900/50 transition-colors"
+            {/* Coaches Section */}
+            <div className="card">
+              <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center">
+                <AcademicCapIcon className="h-6 w-6 mr-3 text-primary-600" />
+                Our Coaches
+                {coaches.length > 0 && (
+                  <span className="ml-3 text-sm bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300 px-3 py-1 rounded-full">
+                    {coaches.length} coach{coaches.length !== 1 ? 'es' : ''}
+                  </span>
+                )}
+              </h2>
+
+              {coachesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <LoadingSpinner />
+                  <span className="ml-3 text-gray-600 dark:text-gray-400">Loading coaches...</span>
+                </div>
+              ) : coaches.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {coaches.map((coach) => (
+                    <Link
+                      key={coach.id}
+                      to={`/trainers/${coach.id}`}
+                      className="group block"
                     >
-                      <TagIcon className="h-4 w-4 mr-2" />
-                      {category.name}
-                    </span>
+                      <motion.div
+                        whileHover={{ y: -2, scale: 1.02 }}
+                        className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 border border-gray-200 dark:border-gray-700 hover:border-primary-300 hover:shadow-md transition-all duration-200 cursor-pointer"
+                      >
+                        <div className="flex items-start space-x-4">
+                          {/* Coach Avatar */}
+                          <div className="flex-shrink-0">
+                            <div className="w-16 h-16 rounded-full overflow-hidden border-2 border-gray-200 dark:border-gray-600">
+                              {renderCoachAvatar(coach)}
+                            </div>
+                          </div>
+                          
+                          {/* Coach Info */}
+                          <div className="flex-grow min-w-0">
+                            <div className="flex items-center justify-between mb-2">
+                              <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-primary-600 transition-colors">
+                                {getCoachDisplayName(coach)}
+                              </h3>
+                              <ArrowRightIcon className="h-5 w-5 text-gray-400 group-hover:text-primary-600 transition-colors" />
+                            </div>
+                            
+                            {/* Experience */}
+                            <div className="flex items-center text-sm text-gray-600 dark:text-gray-400 mb-2">
+                              <StarIcon className="h-4 w-4 mr-1" />
+                              <span>{coach.experience_years} years of experience</span>
+                              {coach.is_verified && (
+                                <CheckBadgeIcon className="h-4 w-4 ml-2 text-green-500" />
+                              )}
+                            </div>
+                            
+                            {/* Specialties */}
+                            {coach.specialties && coach.specialties.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-2">
+                                {coach.specialties.slice(0, 3).map((specialty) => (
+                                  <span
+                                    key={specialty}
+                                    className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
+                                  >
+                                    {specialty}
+                                  </span>
+                                ))}
+                                {coach.specialties.length > 3 && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                                    +{coach.specialties.length - 3} more
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                            
+                            {/* Bio Preview */}
+                            {coach.bio && (
+                              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                                {coach.bio}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    </Link>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="text-center py-8">
+                  <AcademicCapIcon className="h-16 w-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                    No Coaches Yet
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    This gym hasn't added any coaches to their team yet.
+                  </p>
+                </div>
+              )}
+            </div>
 
             {/* About Section */}
             {gym.description && (
@@ -318,6 +482,18 @@ export default function GymProfile() {
                       </div>
                       <span className="text-gray-900 dark:text-white font-medium">
                         {new Date(gym.created_at).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+
+                  {coaches.length > 0 && (
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center text-gray-600 dark:text-gray-400">
+                        <AcademicCapIcon className="h-5 w-5 mr-2" />
+                        <span>Coaches:</span>
+                      </div>
+                      <span className="text-gray-900 dark:text-white font-medium">
+                        {coaches.length} coach{coaches.length === 1 ? '' : 'es'}
                       </span>
                     </div>
                   )}
