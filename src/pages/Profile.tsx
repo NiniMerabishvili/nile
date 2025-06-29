@@ -20,7 +20,6 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { supabase, getGymsByOwner, getIncompleteCoachProfile, type Gym } from '@/lib/supabase'
 import toast from 'react-hot-toast'
-import GymImageDisplay from '@/components/GymImageDisplay'
 import CoachRegistrationForm from '@/components/CoachRegistrationForm'
 import { Link } from 'react-router-dom'
 
