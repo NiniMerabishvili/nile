@@ -2237,8 +2237,11 @@ export async function checkTimeSlotAvailability(
 
 // Password Recovery Functions
 export async function resetPassword(email: string) {
+  // Dynamically determine the redirect URL based on environment
+  const redirectTo = window.location.origin + '/reset-password';
+  
   const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: 'https://nile27.netlify.app/reset-password',
+    redirectTo,
   })
 
   if (error) throw error

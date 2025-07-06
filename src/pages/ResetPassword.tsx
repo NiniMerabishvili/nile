@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { LockClosedIcon, EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
-import { updatePassword } from '../lib/supabase';
+import { supabase, updatePassword } from '../lib/supabase';
 import toast from 'react-hot-toast';
 
 export default function ResetPassword() {
@@ -11,8 +11,8 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isValidSession, setIsValidSession] = useState(false);
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
 
   const fadeIn = {
     initial: { opacity: 0, y: 20 },
@@ -20,18 +20,84 @@ export default function ResetPassword() {
   };
 
   useEffect(() => {
-    // Check if we have the necessary recovery parameters
-    const accessToken = searchParams.get('access_token');
-    const refreshToken = searchParams.get('refresh_token');
-    
-    if (!accessToken || !refreshToken) {
-      toast.error('Invalid reset link. Please request a new password reset.');
-      navigate('/forgot-password');
-    }
-  }, [searchParams, navigate]);
+    // Handle the authentication session from URL fragments
+    const handleAuthSession = async () => {
+      try {
+        // Check if we have error in the URL hash
+        const hash = window.location.hash;
+        if (hash.includes('error=')) {
+          const errorMatch = hash.match(/error=([^&]+)/);
+          const errorDescriptionMatch = hash.match(/error_description=([^&]+)/);
+          
+          const error = errorMatch ? decodeURIComponent(errorMatch[1]) : 'Unknown error';
+          const errorDescription = errorDescriptionMatch 
+            ? decodeURIComponent(errorDescriptionMatch[1].replace(/\+/g, ' ')) 
+            : '';
+
+          console.error('Reset password error:', { error, errorDescription });
+          
+          if (error === 'access_denied' || errorDescription.includes('expired')) {
+            toast.error('The password reset link has expired. Please request a new one.');
+          } else {
+            toast.error(`Reset failed: ${errorDescription || error}`);
+          }
+          
+          navigate('/forgot-password');
+          return;
+        }
+
+        // Check if we have access_token and refresh_token in the URL hash
+        const accessTokenMatch = hash.match(/access_token=([^&]+)/);
+        const refreshTokenMatch = hash.match(/refresh_token=([^&]+)/);
+        
+        if (accessTokenMatch && refreshTokenMatch) {
+          const accessToken = accessTokenMatch[1];
+          const refreshToken = refreshTokenMatch[1];
+          
+          // Set the session using Supabase
+          const { data, error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken
+          });
+
+          if (error) {
+            console.error('Session error:', error);
+            toast.error('Invalid or expired reset link. Please request a new one.');
+            navigate('/forgot-password');
+            return;
+          }
+
+          if (data.session) {
+            setIsValidSession(true);
+            // Clear the URL hash for security
+            window.history.replaceState(null, '', window.location.pathname);
+          } else {
+            toast.error('Failed to create session. Please request a new reset link.');
+            navigate('/forgot-password');
+          }
+        } else {
+          // No tokens found, redirect to forgot password
+          toast.error('Invalid reset link. Please request a new password reset.');
+          navigate('/forgot-password');
+        }
+      } catch (error) {
+        console.error('Error handling auth session:', error);
+        toast.error('An error occurred. Please request a new password reset.');
+        navigate('/forgot-password');
+      }
+    };
+
+    handleAuthSession();
+  }, [navigate]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    
+    if (!isValidSession) {
+      toast.error('Invalid session. Please request a new password reset.');
+      navigate('/forgot-password');
+      return;
+    }
     
     if (password !== confirmPassword) {
       toast.error('Passwords do not match');
@@ -48,13 +114,30 @@ export default function ResetPassword() {
     try {
       await updatePassword(password);
       toast.success('Password updated successfully!');
+      
+      // Sign out the user so they can sign in with the new password
+      await supabase.auth.signOut();
+      
       navigate('/signin');
     } catch (error: any) {
+      console.error('Update password error:', error);
       toast.error(error.message || 'Failed to update password');
     } finally {
       setLoading(false);
     }
   };
+
+  // Show loading while checking session
+  if (!isValidSession) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-900 via-dark-200 to-dark-100">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-white">Verifying reset link...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-900 via-dark-200 to-dark-100 py-12 px-4 sm:px-6 lg:px-8">

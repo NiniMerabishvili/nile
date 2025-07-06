@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { supabase, type Profile, resetPassword, updatePassword } from '../lib/supabase'
+import { supabase, type Profile, resetPassword as resetPasswordAPI, updatePassword } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 interface AuthContextType {
@@ -272,9 +272,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const handleResetPassword = async (email: string) => {
+  const resetPassword = async (email: string) => {
     try {
-      await resetPassword(email)
+      await resetPasswordAPI(email)
     } catch (error: any) {
       console.error('Reset password error:', error)
       throw error
@@ -302,7 +302,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signIn,
       signOut,
       refreshProfile,
-      resetPassword: handleResetPassword,
+      resetPassword,
       updatePassword: handleUpdatePassword
     }}>
       {children}
