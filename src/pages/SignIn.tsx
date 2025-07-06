@@ -92,9 +92,12 @@ export default function SignIn() {
 
           <div className="flex items-center justify-between">
             <div className="text-sm">
-              <a href="#" className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300">
+              <Link 
+                to="/forgot-password" 
+                className="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400 dark:hover:text-primary-300"
+              >
                 Forgot your password?
-              </a>
+              </Link>
             </div>
           </div>
 

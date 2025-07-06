@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import type { User } from '@supabase/supabase-js'
-import { supabase, type Profile } from '../lib/supabase'
+import { supabase, type Profile, resetPassword, updatePassword } from '../lib/supabase'
 import toast from 'react-hot-toast'
 
 interface AuthContextType {
@@ -14,6 +14,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
   refreshProfile: () => Promise<void>
+  resetPassword: (email: string) => Promise<void>
+  updatePassword: (password: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -270,6 +272,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const handleResetPassword = async (email: string) => {
+    try {
+      await resetPassword(email)
+    } catch (error: any) {
+      console.error('Reset password error:', error)
+      throw error
+    }
+  }
+
+  const handleUpdatePassword = async (password: string) => {
+    try {
+      await updatePassword(password)
+    } catch (error: any) {
+      console.error('Update password error:', error)
+      throw error
+    }
+  }
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -281,7 +301,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signUp,
       signIn,
       signOut,
-      refreshProfile
+      refreshProfile,
+      resetPassword: handleResetPassword,
+      updatePassword: handleUpdatePassword
     }}>
       {children}
     </AuthContext.Provider>

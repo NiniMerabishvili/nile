@@ -20,6 +20,8 @@ import EditGym from '@/pages/EditGym'
 import Profile from '@/pages/Profile'
 import { ThemeProvider } from '@/context/ThemeContext'
 import { AuthProvider } from '@/context/AuthContext'
+import ForgotPassword from '@/pages/ForgotPassword'
+import ResetPassword from '@/pages/ResetPassword'
 
 // Import test utility for debugging in development
 import '@/utils/test-supabase'
@@ -41,6 +43,8 @@ function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/signin" element={<SignIn />} />
               <Route path="/signup" element={<SignUp />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/gym-owner" element={<GymOwnerDashboard />} />
               <Route path="/coach/dashboard" element={<CoachDashboard />} />

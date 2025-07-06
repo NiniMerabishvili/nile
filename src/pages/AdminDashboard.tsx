@@ -526,7 +526,7 @@ export default function AdminDashboard() {
                             {gym.status === 'pending' && (
                               <div className="flex gap-3">
                                 <button
-                                  onClick={() => handleApproval(gym.id, 'approved')}
+                                  onClick={() => handleApproval(Number(gym.id), 'approved')}
                                   disabled={processingId === gym.id}
                                   className="flex items-center space-x-2 px-6 py-2 bg-green-600 hover:bg-green-700 
                                            text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed
@@ -539,7 +539,7 @@ export default function AdminDashboard() {
                                 </button>
                                 
                                 <button
-                                  onClick={() => handleApproval(gym.id, 'rejected')}
+                                  onClick={() => handleApproval(Number(gym.id), 'rejected')}
                                   disabled={processingId === gym.id}
                                   className="flex items-center space-x-2 px-6 py-2 bg-red-600 hover:bg-red-700 
                                            text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed

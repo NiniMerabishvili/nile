@@ -178,6 +178,38 @@ export interface Purchase {
   created_at: string
 }
 
+// Booking interfaces
+export interface Booking {
+  id: string
+  user_id: string
+  coach_id: string
+  start_date: string // DATE in YYYY-MM-DD format
+  end_date: string // DATE in YYYY-MM-DD format  
+  start_time: string // TIME in HH:MM format
+  end_time: string // TIME in HH:MM format
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+  package_type: 'single' | '5pack' | '10pack'
+  total_price: number
+  notes?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface UnavailableDate {
+  id: string
+  coach_id: string
+  start_date: string // DATE in YYYY-MM-DD format
+  end_date: string // DATE in YYYY-MM-DD format
+  reason?: string
+  created_at: string
+}
+
+export interface TimeSlot {
+  time: string
+  available: boolean
+  reason?: string // Why it's unavailable (if not available)
+}
+
 // Update the CoachWithGymInfo interface to handle the role type properly
 export interface CoachWithGymInfo {
   id: string
@@ -1938,4 +1970,286 @@ export async function cleanupGymImages(gymId: string): Promise<void> {
     console.error('Error cleaning up gym images:', error)
     throw error
   }
+}
+
+// ==================== BOOKING FUNCTIONS ====================
+
+// Get coach availability for a specific date
+export async function getCoachAvailability(coachId: string, date: string): Promise<TimeSlot[]> {
+  try {
+    const dayOfWeek = new Date(date).getDay()
+    
+    // Generate base time slots based on day
+    const baseSlots: TimeSlot[] = []
+    
+    // Skip Sundays (0)
+    if (dayOfWeek === 0) {
+      return []
+    }
+
+    // Different hours for weekdays vs Saturday
+    const startHour = dayOfWeek === 6 ? 8 : 6 // Saturday starts at 8 AM, weekdays at 6 AM
+    const endHour = dayOfWeek === 6 ? 14 : 20 // Saturday ends at 2 PM, weekdays at 8 PM
+
+    for (let hour = startHour; hour < endHour; hour++) {
+      const time = `${hour.toString().padStart(2, '0')}:00`
+      baseSlots.push({
+        time,
+        available: true
+      })
+    }
+
+    // Check for existing bookings on this date
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('bookings')
+      .select('start_time, end_time, status')
+      .eq('coach_id', coachId)
+      .eq('start_date', date)
+      .in('status', ['confirmed', 'pending'])
+
+    if (bookingsError) {
+      console.error('Error fetching bookings:', bookingsError)
+      throw bookingsError
+    }
+
+    // Check for unavailable dates
+    const { data: unavailableDates, error: unavailableError } = await supabase
+      .from('unavailable_dates')
+      .select('reason')
+      .eq('coach_id', coachId)
+      .lte('start_date', date)
+      .gte('end_date', date)
+
+    if (unavailableError) {
+      console.error('Error fetching unavailable dates:', unavailableError)
+      throw unavailableError
+    }
+
+    // If entire day is marked unavailable
+    if (unavailableDates && unavailableDates.length > 0) {
+      return baseSlots.map(slot => ({
+        ...slot,
+        available: false,
+        reason: unavailableDates[0].reason || 'Unavailable'
+      }))
+    }
+
+    // Mark booked time slots as unavailable
+    const bookedSlots = baseSlots.map(slot => {
+      const isBooked = bookings?.some(booking => {
+        const slotTime = parseInt(slot.time.split(':')[0])
+        const startTime = parseInt(booking.start_time.split(':')[0])
+        const endTime = parseInt(booking.end_time.split(':')[0])
+        return slotTime >= startTime && slotTime < endTime
+      })
+
+      return {
+        ...slot,
+        available: !isBooked,
+        reason: isBooked ? 'Already booked' : undefined
+      }
+    })
+
+    return bookedSlots
+  } catch (error) {
+    console.error('Error getting coach availability:', error)
+    throw error
+  }
+}
+
+// Create a new booking
+export async function createBooking({
+  coachId,
+  date,
+  startTime,
+  duration, // in minutes
+  price,
+  notes
+}: {
+  coachId: string
+  date: string // YYYY-MM-DD format
+  startTime: string // HH:MM format
+  duration: number
+  price: number
+  notes?: string
+}): Promise<Booking> {
+  try {
+    const user = await getCurrentUser()
+    if (!user) {
+      throw new Error('You must be logged in to book a session')
+    }
+
+    // Calculate end time
+    const [hours, minutes] = startTime.split(':').map(Number)
+    const startMinutes = hours * 60 + minutes
+    const endMinutes = startMinutes + duration
+    const endHours = Math.floor(endMinutes / 60)
+    const endMins = endMinutes % 60
+    const endTime = `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`
+
+    // Check availability before booking
+    const availability = await getCoachAvailability(coachId, date)
+    const requestedSlot = availability.find(slot => slot.time === startTime)
+    
+    if (!requestedSlot || !requestedSlot.available) {
+      throw new Error('This time slot is no longer available')
+    }
+
+    // Create the booking
+    const bookingData = {
+      user_id: user.id,
+      coach_id: coachId,
+      start_date: date,
+      end_date: date, // Single day booking
+      start_time: startTime,
+      end_time: endTime,
+      status: 'confirmed' as const,
+      package_type: 'single' as const,
+      total_price: price,
+      notes: notes || null
+    }
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .insert(bookingData)
+      .select()
+      .single()
+
+    if (error) {
+      console.error('Error creating booking:', error)
+      throw error
+    }
+
+    // Also add to unavailable_dates to block the time for other users
+    await supabase
+      .from('unavailable_dates')
+      .insert({
+        coach_id: coachId,
+        start_date: date,
+        end_date: date,
+        reason: `Booked session (${startTime} - ${endTime})`
+      })
+
+    return data as Booking
+  } catch (error) {
+    console.error('Error creating booking:', error)
+    throw error
+  }
+}
+
+// Get bookings for a user
+export async function getUserBookings(): Promise<Booking[]> {
+  try {
+    const user = await getCurrentUser()
+    if (!user) {
+      throw new Error('You must be logged in to view bookings')
+    }
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('start_date', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching user bookings:', error)
+      throw error
+    }
+
+    return data || []
+  } catch (error) {
+    console.error('Error getting user bookings:', error)
+    throw error
+  }
+}
+
+// Get bookings for a coach
+export async function getCoachBookings(coachId: string): Promise<Booking[]> {
+  try {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('coach_id', coachId)
+      .order('start_date', { ascending: true })
+
+    if (error) {
+      console.error('Error fetching coach bookings:', error)
+      throw error
+    }
+
+    return data || []
+  } catch (error) {
+    console.error('Error getting coach bookings:', error)
+    throw error
+  }
+}
+
+// Update booking status
+export async function updateBookingStatus(bookingId: string, status: Booking['status']): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('bookings')
+      .update({ status })
+      .eq('id', bookingId)
+
+    if (error) {
+      console.error('Error updating booking status:', error)
+      throw error
+    }
+  } catch (error) {
+    console.error('Error updating booking status:', error)
+    throw error
+  }
+}
+
+// Check if a specific date and time is available
+export async function checkTimeSlotAvailability(
+  coachId: string, 
+  date: string, 
+  startTime: string,
+  duration: number = 60
+): Promise<boolean> {
+  try {
+    const availability = await getCoachAvailability(coachId, date)
+    const requestedSlot = availability.find(slot => slot.time === startTime)
+    
+    // For longer sessions, check if consecutive slots are also available
+    if (duration > 60) {
+      const [hours] = startTime.split(':').map(Number)
+      const slotsNeeded = Math.ceil(duration / 60)
+      
+      for (let i = 0; i < slotsNeeded; i++) {
+        const checkHour = hours + i
+        const checkTime = `${checkHour.toString().padStart(2, '0')}:00`
+        const slot = availability.find(s => s.time === checkTime)
+        if (!slot || !slot.available) {
+          return false
+        }
+      }
+    }
+    
+    return requestedSlot?.available || false
+  } catch (error) {
+    console.error('Error checking time slot availability:', error)
+    return false
+  }
+}
+
+// Password Recovery Functions
+export async function resetPassword(email: string) {
+  const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://nile27.netlify.app/reset-password',
+  })
+
+  if (error) throw error
+  return data
+}
+
+export async function updatePassword(password: string) {
+  const { data, error } = await supabase.auth.updateUser({
+    password: password
+  })
+
+  if (error) throw error
+  return data
 } 

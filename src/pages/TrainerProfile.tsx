@@ -14,6 +14,8 @@ import {
 } from '@heroicons/react/24/outline'
 import { getCoachProfile, getAllTutorialsByCoach, type Coach, type Profile, type Tutorial } from '../lib/supabase'
 import LoadingSpinner from '../components/LoadingSpinner'
+import toast from 'react-hot-toast'
+import CalendarBooking from '../components/CalendarBooking'
 
 interface CoachWithProfile extends Coach {
   profile?: Profile
@@ -35,7 +37,6 @@ export default function TrainerProfile() {
   const [tutorials, setTutorials] = useState<Tutorial[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [selectedPackage, setSelectedPackage] = useState('single')
 
   useEffect(() => {
     const fetchProfileData = async () => {
@@ -91,6 +92,12 @@ export default function TrainerProfile() {
     return 'Available Online'
   }
 
+  // Handle successful booking
+  const handleBookingComplete = () => {
+    toast.success(`Booking confirmed! Your training session with ${getDisplayName()} is scheduled.`)
+    // Optionally redirect to bookings page or show confirmation
+  }
+
   const fadeIn: Variants = {
     initial: { opacity: 0, y: 20 },
     animate: { opacity: 1, y: 0, transition: { duration: 0.6 } }
@@ -121,32 +128,8 @@ export default function TrainerProfile() {
     )
   }
 
-  // Calculate packages based on experience years
-  const getPackages = (experienceYears: number) => {
-    const basePrice = 40 + (experienceYears * 5) // $5 increase per year of experience
-    return [
-      {
-        id: 'single',
-        name: 'Single Session',
-        price: `$${basePrice}`,
-        description: 'Perfect for trying out my training style'
-      },
-      {
-        id: '5pack',
-        name: '5 Session Pack',
-        price: `$${Math.round(basePrice * 4.5)}`, // 10% discount
-        description: 'Most popular choice for getting started'
-      },
-      {
-        id: '10pack',
-        name: '10 Session Pack',
-        price: `$${Math.round(basePrice * 8)}`, // 20% discount
-        description: 'Best value for committed training'
-      }
-    ]
-  }
-
-  const packages = getPackages(coach.experience_years || 0)
+  // Calculate base price (you can customize this logic)
+  const basePrice = 40 // Base price for training sessions
 
   // Default availability schedule
   const availability = {
@@ -312,36 +295,24 @@ export default function TrainerProfile() {
               variants={fadeIn}
               className="space-y-6"
             >
-              {/* Training Packages */}
+              {/* Book Training Session */}
               <div className="bg-white dark:bg-dark-200 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Training Packages</h2>
-                <div className="space-y-4">
-                  {packages.map((pkg) => (
-                    <div
-                      key={pkg.id}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                        selectedPackage === pkg.id
-                          ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
-                          : 'border-gray-200 dark:border-gray-600 hover:border-primary-300'
-                      }`}
-                      onClick={() => setSelectedPackage(pkg.id)}
-                    >
-                      <div className="flex justify-between items-center mb-2">
-                        <h3 className="font-semibold text-gray-900 dark:text-white">{pkg.name}</h3>
-                        <span className="text-primary-600 dark:text-primary-400 font-bold">{pkg.price}</span>
-                      </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">{pkg.description}</p>
-                    </div>
-                  ))}
-                </div>
-                <button className="w-full mt-4 bg-primary-600 text-white py-3 rounded-lg font-semibold hover:bg-primary-700 transition-colors">
-                  Book Now
-                </button>
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Book Training Session</h2>
+                
+                {coach.id && (
+                  <CalendarBooking
+                    coachId={coach.id}
+                    coachName={getDisplayName()}
+                    basePrice={basePrice}
+                    experienceYears={coach.experience_years || 0}
+                    onBookingComplete={handleBookingComplete}
+                  />
+                )}
               </div>
 
               {/* Availability */}
               <div className="bg-white dark:bg-dark-200 rounded-xl shadow-sm p-6 border border-gray-200 dark:border-gray-700">
-                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Availability</h2>
+                <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">General Availability</h2>
                 <div className="space-y-3">
                   {Object.entries(availability).map(([day, time]) => (
                     <div key={day} className="flex justify-between">
@@ -350,6 +321,9 @@ export default function TrainerProfile() {
                     </div>
                   ))}
                 </div>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-3">
+                  * Use the booking calendar above to see exact availability and book sessions.
+                </p>
               </div>
 
               {/* Contact */}
