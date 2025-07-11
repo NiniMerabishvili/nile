@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { format, addDays, startOfToday, isSameDay, isBefore } from 'date-fns'
+import { format, addDays, startOfToday, startOfWeek, isSameDay, isBefore } from 'date-fns'
 import {
   ClockIcon,
   CurrencyDollarIcon,
@@ -39,7 +39,10 @@ export default function CalendarBooking({
   const [loading, setLoading] = useState(false)
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([])
   const [loadingAvailability, setLoadingAvailability] = useState(false)
-  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(startOfToday())
+  // 🔧 FIX: Start from the actual beginning of the week (Sunday)
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(
+    startOfWeek(startOfToday(), { weekStartsOn: 0 }) // 0 = Sunday
+  )
 
   // Generate calendar days for the current week
   const generateWeekDays = () => {
@@ -267,7 +270,7 @@ export default function CalendarBooking({
                     <CheckCircleIconSolid className="absolute -top-1 -right-1 h-5 w-5 text-green-500" />
                   )}
                   
-                  {!slot.available && slot.reason && (
+                  {!slot.available && (
                     <div className="absolute inset-0 flex items-center justify-center bg-gray-50/90 dark:bg-gray-800/90 rounded-lg">
                       <span className="text-xs text-gray-500 dark:text-gray-400 px-2 text-center">
                         {slot.reason}
@@ -330,7 +333,7 @@ export default function CalendarBooking({
               </span>
             </div>
             
-            <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+            <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
               <div className="flex justify-between">
                 <span>Base price:</span>
                 <span>${basePrice}</span>
