@@ -2012,7 +2012,7 @@ export async function getCoachAvailability(coachId: string, date: string): Promi
       throw bookingsError
     }
 
-    // Check for unavailable dates
+    // Check for unavailable dates (includes both manual blocks and booked sessions)
     const { data: unavailableDates, error: unavailableError } = await supabase
       .from('unavailable_dates')
       .select('reason')
@@ -2025,39 +2025,82 @@ export async function getCoachAvailability(coachId: string, date: string): Promi
       throw unavailableError
     }
 
-    // If entire day is marked unavailable
-    if (unavailableDates && unavailableDates.length > 0) {
+    // Check if entire day is marked unavailable (manual coach block)
+    const dayBlockedManually = unavailableDates?.find(ud => 
+      !ud.reason?.includes('Booked session') && !ud.reason?.includes('(')
+    )
+    
+    if (dayBlockedManually) {
       return baseSlots.map(slot => ({
         ...slot,
         available: false,
-        reason: unavailableDates[0].reason || 'Unavailable'
+        reason: dayBlockedManually.reason || 'Unavailable'
       }))
     }
 
-    // Mark booked time slots as unavailable
-    const bookedSlots = baseSlots.map(slot => {
-      const isBooked = bookings?.some(booking => {
-        const slotTime = parseInt(slot.time.split(':')[0])
+    // Mark time slots as unavailable based on bookings AND unavailable_dates
+    const availableSlots = baseSlots.map(slot => {
+      const slotTime = parseInt(slot.time.split(':')[0])
+      
+      // Check direct bookings from bookings table
+      const isBookedFromBookings = bookings?.some(booking => {
         const startTime = parseInt(booking.start_time.split(':')[0])
         const endTime = parseInt(booking.end_time.split(':')[0])
         return slotTime >= startTime && slotTime < endTime
       })
 
+      // Check booked sessions from unavailable_dates table
+      const isBookedFromUnavailable = unavailableDates?.some(unavailable => {
+        if (!unavailable.reason?.includes('Booked session')) return false
+        
+        // Extract time range from reason like "Booked session (09:00 - 10:00)"
+        const timeMatch = unavailable.reason.match(/\((\d{2}:\d{2}) - (\d{2}:\d{2})\)/)
+        if (!timeMatch) return false
+        
+        const startTime = parseInt(timeMatch[1].split(':')[0])
+        const endTime = parseInt(timeMatch[2].split(':')[0])
+        return slotTime >= startTime && slotTime < endTime
+      })
+
+      // Check for other manual unavailable periods for specific times
+      const isManuallyUnavailable = unavailableDates?.some(unavailable => {
+        if (unavailable.reason?.includes('Booked session')) return false
+        
+        // If it's a specific time block, check if it matches
+        const timeMatch = unavailable.reason?.match(/(\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})/)
+        if (timeMatch) {
+          const startTime = parseInt(timeMatch[1].split(':')[0])
+          const endTime = parseInt(timeMatch[2].split(':')[0])
+          return slotTime >= startTime && slotTime < endTime
+        }
+        
+        return false // General day blocks are handled above
+      })
+
+      const isUnavailable = isBookedFromBookings || isBookedFromUnavailable || isManuallyUnavailable
+      let reason = undefined
+      
+      if (isBookedFromBookings || isBookedFromUnavailable) {
+        reason = 'Already booked'
+      } else if (isManuallyUnavailable) {
+        reason = 'Unavailable'
+      }
+
       return {
         ...slot,
-        available: !isBooked,
-        reason: isBooked ? 'Already booked' : undefined
+        available: !isUnavailable,
+        reason
       }
     })
 
-    return bookedSlots
+    return availableSlots
   } catch (error) {
     console.error('Error getting coach availability:', error)
     throw error
   }
 }
 
-// Create a new booking
+// Create a new booking using database function
 export async function createBooking({
   coachId,
   date,
@@ -2095,44 +2138,68 @@ export async function createBooking({
       throw new Error('This time slot is no longer available')
     }
 
-    // Create the booking
-    const bookingData = {
-      user_id: user.id,
-      coach_id: coachId,
-      start_date: date,
-      end_date: date, // Single day booking
-      start_time: startTime,
-      end_time: endTime,
-      status: 'confirmed' as const,
-      package_type: 'single' as const,
-      total_price: price,
-      notes: notes || null
+    // For longer sessions, check if all consecutive slots are available
+    if (duration > 60) {
+      const slotsNeeded = Math.ceil(duration / 60)
+      for (let i = 0; i < slotsNeeded; i++) {
+        const checkHour = hours + i
+        const checkTime = `${checkHour.toString().padStart(2, '0')}:00`
+        const slot = availability.find(s => s.time === checkTime)
+        if (!slot || !slot.available) {
+          throw new Error(`Time slot ${checkTime} is not available for this ${duration}-minute session`)
+        }
+      }
     }
 
-    const { data, error } = await supabase
+    console.log('🚀 Creating booking with function...', {
+      p_coach_id: coachId,
+      p_start_date: date,
+      p_end_date: date,
+      p_start_time: startTime,
+      p_end_time: endTime,
+      p_total_price: price,
+      p_notes: notes || null,
+      p_unavailable_reason: `Booked session (${startTime} - ${endTime})`
+    })
+
+    // Use the database function to create booking and block time slot atomically
+    const { data: bookingId, error: functionError } = await supabase.rpc(
+      'create_booking_with_unavailable_date',
+      {
+        p_coach_id: coachId,
+        p_start_date: date,
+        p_end_date: date,
+        p_start_time: startTime,
+        p_end_time: endTime,
+        p_total_price: price,
+        p_notes: notes || null,
+        p_unavailable_reason: `Booked session (${startTime} - ${endTime})`
+      }
+    )
+
+    if (functionError) {
+      console.error('❌ Database function error:', functionError)
+      throw new Error(`Failed to create booking: ${functionError.message}`)
+    }
+
+    console.log('✅ Booking created with ID:', bookingId)
+
+    // Fetch the created booking to return
+    const { data: booking, error: fetchError } = await supabase
       .from('bookings')
-      .insert(bookingData)
-      .select()
+      .select('*')
+      .eq('id', bookingId)
       .single()
 
-    if (error) {
-      console.error('Error creating booking:', error)
-      throw error
+    if (fetchError) {
+      console.error('Error fetching created booking:', fetchError)
+      throw new Error('Booking created but failed to retrieve details')
     }
 
-    // Also add to unavailable_dates to block the time for other users
-    await supabase
-      .from('unavailable_dates')
-      .insert({
-        coach_id: coachId,
-        start_date: date,
-        end_date: date,
-        reason: `Booked session (${startTime} - ${endTime})`
-      })
-
-    return data as Booking
+    console.log('✅ Booking details retrieved:', booking)
+    return booking as Booking
   } catch (error) {
-    console.error('Error creating booking:', error)
+    console.error('❌ Complete booking error:', error)
     throw error
   }
 }
@@ -2255,4 +2322,130 @@ export async function updatePassword(password: string) {
 
   if (error) throw error
   return data
+}
+
+// Cancel a booking and remove from unavailable_dates
+export async function cancelBooking(bookingId: string): Promise<void> {
+  try {
+    const user = await getCurrentUser()
+    if (!user) {
+      throw new Error('You must be logged in to cancel a booking')
+    }
+
+    // Get the booking details first
+    const { data: booking, error: fetchError } = await supabase
+      .from('bookings')
+      .select('*')
+      .eq('id', bookingId)
+      .eq('user_id', user.id) // Only allow users to cancel their own bookings
+      .single()
+
+    if (fetchError || !booking) {
+      throw new Error('Booking not found or you do not have permission to cancel it')
+    }
+
+    // Update booking status to cancelled
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({ status: 'cancelled' })
+      .eq('id', bookingId)
+
+    if (updateError) {
+      throw updateError
+    }
+
+    // Remove from unavailable_dates to free up the time slot
+    const { error: removeError } = await supabase
+      .from('unavailable_dates')
+      .delete()
+      .eq('coach_id', booking.coach_id)
+      .eq('start_date', booking.start_date)
+      .eq('end_date', booking.end_date)
+      .like('reason', `%Booked session (${booking.start_time} - ${booking.end_time})%`)
+
+    if (removeError) {
+      console.error('Error removing from unavailable_dates:', removeError)
+      // Don't throw error here - booking is already cancelled
+    }
+
+  } catch (error) {
+    console.error('Error cancelling booking:', error)
+    throw error
+  }
 } 
+
+// Debug function to test booking system
+export async function debugBookingSystem(coachId: string, date: string) {
+  console.log('🔍 DEBUG: Testing booking system...')
+  
+  try {
+    // Test 1: Check if tables exist
+    const { data: bookingsTest } = await supabase
+      .from('bookings')
+      .select('count(*)', { count: 'exact', head: true })
+    
+    const { data: unavailableTest } = await supabase
+      .from('unavailable_dates')
+      .select('count(*)', { count: 'exact', head: true })
+    
+    console.log('✅ Tables exist:', { bookingsTest, unavailableTest })
+    
+    // Test 2: Check function exists
+    const { data: functionTest, error: functionError } = await supabase.rpc(
+      'create_booking_with_unavailable_date',
+      {
+        p_coach_id: coachId,
+        p_start_date: date,
+        p_end_date: date,
+        p_start_time: '09:00',
+        p_end_time: '10:00',
+        p_total_price: 50.00,
+        p_notes: 'DEBUG TEST - DELETE ME',
+        p_unavailable_reason: 'DEBUG TEST'
+      }
+    )
+    
+    if (functionError) {
+      console.error('❌ Function error:', functionError)
+    } else {
+      console.log('✅ Function works, booking ID:', functionTest)
+      
+      // Clean up test booking
+      await supabase.from('bookings').delete().eq('id', functionTest)
+      await supabase.from('unavailable_dates').delete().match({
+        coach_id: coachId,
+        reason: 'DEBUG TEST'
+      })
+    }
+    
+  } catch (error) {
+    console.error('🔍 DEBUG error:', error)
+  }
+}
+
+// Debug function to test the booking system
+export async function debugBookingSetup() {
+  console.log('🔍 Testing booking system setup...')
+  
+  try {
+    // Test 1: Check if function exists
+    const { data: testResult, error: testError } = await supabase.rpc('check_date_availability', {
+      p_coach_id: '00000000-0000-0000-0000-000000000000',
+      p_start_date: '2024-12-09',
+      p_end_date: '2024-12-09'
+    })
+    
+    console.log('✅ Functions exist and work:', { testResult, testError })
+    
+    // Test 2: Check table access
+    const { data: bookingsTest } = await supabase.from('bookings').select('count', { count: 'exact', head: true })
+    const { data: unavailableTest } = await supabase.from('unavailable_dates').select('count', { count: 'exact', head: true })
+    
+    console.log('✅ Tables accessible:', { bookingsTest, unavailableTest })
+    
+    return true
+  } catch (error) {
+    console.error('❌ Setup test failed:', error)
+    return false
+  }
+}
