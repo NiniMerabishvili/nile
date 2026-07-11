@@ -8,7 +8,7 @@ Live demo: [nile27.netlify.app](https://nile27.netlify.app/)
 
 ## What This App Does
 
-Nile isn't just a booking form in front of a listings page — it's a small marketplace with four distinct roles, each with their own dashboard and permissions, backed by Supabase Row Level Security.
+Nile is a small marketplace with four distinct roles, each with their own dashboard and permissions, backed by Supabase Row Level Security.
 
 - **Members** can browse gyms and trainers by location, view detailed profiles (amenities, schedules, reviews, certifications), and book sessions through a calendar-based booking flow
 - **Gym owners** can list and manage their own gyms, including gym details, images, and amenities (`AddGym`, `EditGym`, `GymOwnerDashboard`)
